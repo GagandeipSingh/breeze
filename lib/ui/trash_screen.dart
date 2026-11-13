@@ -467,27 +467,30 @@ class _TrashTile extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: 3.dp),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text:
-                              '${friendlyDate(item.deletedAt, short: true, h24: MediaQuery.alwaysUse24HourFormatOf(context))}  ·  ${humanSize(item.size)}  ·  ',
-                        ),
-                        TextSpan(
-                          text: left,
-                          style: soon
-                              ? const TextStyle(
-                                  color: Color(0xFFE5484D),
-                                  fontWeight: FontWeight.w600,
-                                )
-                              : null,
-                        ),
-                      ],
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text:
+                                '${friendlyDate(item.deletedAt, short: true, h24: MediaQuery.alwaysUse24HourFormatOf(context))}  ·  ${humanSize(item.size)}  ·  ',
+                          ),
+                          TextSpan(
+                            text: left,
+                            style: soon
+                                ? const TextStyle(
+                                    color: Color(0xFFE5484D),
+                                    fontWeight: FontWeight.w600,
+                                  )
+                                : null,
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      style: TextStyle(color: p.sub, fontSize: 12.sp),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: p.sub, fontSize: 12.sp),
                   ),
                 ],
               ),
