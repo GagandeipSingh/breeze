@@ -233,7 +233,7 @@ class _TrashScreenState extends State<TrashScreen> {
                                 bottom: _selecting ? 90.dp : 24.dp,
                               ),
                               gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: 460.dp,
+                                maxCrossAxisExtent: 520.dp,
                                 mainAxisSpacing: 10.dp,
                                 crossAxisSpacing: 10.dp,
                                 mainAxisExtent: 84.dp,
@@ -472,7 +472,7 @@ class _TrashTile extends StatelessWidget {
                       children: [
                         TextSpan(
                           text:
-                              'Deleted ${friendlyDate(item.deletedAt, short: true, h24: MediaQuery.alwaysUse24HourFormatOf(context))}  ·  ${humanSize(item.size)}  ·  ',
+                              '${friendlyDate(item.deletedAt, short: true, h24: MediaQuery.alwaysUse24HourFormatOf(context))}  ·  ${humanSize(item.size)}  ·  ',
                         ),
                         TextSpan(
                           text: left,
@@ -487,7 +487,7 @@ class _TrashTile extends StatelessWidget {
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: p.sub, fontSize: 13.sp),
+                    style: TextStyle(color: p.sub, fontSize: 12.sp),
                   ),
                 ],
               ),
