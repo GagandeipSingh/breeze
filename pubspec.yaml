@@ -1,0 +1,95 @@
+name: breeze
+description: "Breeze — a fast, minimal .txt editor."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  cupertino_icons: ^1.0.9
+  flutter:
+    sdk: flutter
+  flutter_screenutil: ^5.9.3
+  intl: ^0.20.3
+  share_plus: ^13.3.1
+  shared_preferences: ^2.5.6
+  crypto: ^3.0.6
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  local_auth: ^2.3.0
+  printing: ^5.14.2
+  pdf: ^3.11.1
+  file_picker: ^13.3.3
+  archive: ^4.6.0
+  characters: ^1.4.0
+  re_highlight: ^0.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
+
+# image 4.11.0 calls ZLibDecoder.decodeLazy, which archive 4.0.9 (the version the
+# solver otherwise picks) doesn't define — the build fails to compile. Pin the
+# same known-good pair the dates app ships.
+dependency_overrides:
+  archive: ^4.6.0
+  image: ^4.12.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/
+    - assets/fonts/NotoSansDevanagari-Regular.ttf
+    - assets/fonts/NotoEmoji-Regular.ttf
+    # Inter cut to Latin and common symbols, for PDFs made by Android
+    # (it embeds whole fonts; everything else comes from the phone).
+    - assets/fonts/pdf/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/Inter-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Inter-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/Inter-BoldItalic.ttf
+          weight: 700
+          style: italic
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "assets/icon/bg.png"
+  adaptive_icon_foreground: "assets/icon/fg.png"
+  adaptive_icon_foreground_inset: 0
+
+flutter_native_splash:
+  color: "#F6F8FB"
+  color_dark: "#0B0E11"
+  image: assets/splash_light.png
+  image_dark: assets/splash_dark.png
+  android_12:
+    image: assets/splash_light.png
+    image_dark: assets/splash_dark.png
+    icon_background_color: "#F6F8FB"
+    icon_background_color_dark: "#0B0E11"
+  android: true
+  ios: true
