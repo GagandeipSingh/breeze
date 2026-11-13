@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Scrollbar;
 import 'glass_chrome.dart';
@@ -175,7 +177,9 @@ class _TrashScreenState extends State<TrashScreen> {
           children: [
             Center(
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 760.dp),
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width >= 720.dp ? 1400.dp : 760.dp,
+                ),
                 child: Padding(
                   padding: pagePadding(context),
                   child: Column(
@@ -220,6 +224,29 @@ class _TrashScreenState extends State<TrashScreen> {
                               hint:
                                   'Deleted files will appear here for 30 days.',
                               bg: false,
+                            ),
+                          )
+                        : MediaQuery.sizeOf(context).width >= 720.dp
+                        ? Scrollbar(
+                            child: GridView.builder(
+                              padding: EdgeInsets.only(
+                                bottom: _selecting ? 90.dp : 24.dp,
+                              ),
+                              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 460.dp,
+                                mainAxisSpacing: 10.dp,
+                                crossAxisSpacing: 10.dp,
+                                mainAxisExtent: 84.dp,
+                              ),
+                              itemCount: items.length,
+                              itemBuilder: (c, i) => _TrashTile(
+                                item: items[i],
+                                selecting: _selecting,
+                                selected: _sel.contains(items[i].file.path),
+                                onTap: () =>
+                                    _selecting ? _toggle(items[i]) : _menu(items[i]),
+                                onLong: () => _toggle(items[i]),
+                              ),
                             ),
                           )
                         : Scrollbar(
@@ -271,10 +298,11 @@ class _TrashScreenState extends State<TrashScreen> {
         child: Icon(icon, size: 21.dp, color: color ?? p.accent),
       ),
     );
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     return Positioned(
       left: 16,
       right: 16,
-      bottom: MediaQuery.paddingOf(context).bottom + 14.dp,
+      bottom: math.max(bottomInset + 18.dp, 24.dp),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 760.dp),

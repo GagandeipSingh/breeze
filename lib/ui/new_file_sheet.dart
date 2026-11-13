@@ -128,7 +128,7 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
             Navigator.of(ctx).pop(ext);
           }
 
-          Widget badge(FileLook look) => FileBadge(look: look, size: 46.dp);
+          Widget badge(FileLook look) => FileBadge(look: look, size: 38.dp);
 
           // The data or code type used last, shown on its row.
           const kinds = _kindExts;
@@ -147,15 +147,15 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
           Widget tools(List<IconData> icons) => icons.isEmpty
               ? Text(
                   'No formatting: saved exactly as typed',
-                  style: TextStyle(color: p.sub, fontSize: 12.sp),
+                  style: TextStyle(color: p.sub, fontSize: 11.5.sp),
                 )
               : Wrap(
-                  spacing: 8.dp,
+                  spacing: 6.dp,
                   children: [
                     for (final i in icons)
                       Icon(
                         i,
-                        size: 17.dp,
+                        size: 15.dp,
                         color: p.accent.withValues(alpha: 0.85),
                       ),
                   ],
@@ -177,17 +177,17 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
               behavior: HitTestBehavior.opaque,
               onTap: onTap,
               child: Container(
-                margin: EdgeInsets.symmetric(vertical: 5.dp),
-                padding: EdgeInsets.fromLTRB(12.dp, 12.dp, 12.dp, 12.dp),
+                margin: EdgeInsets.symmetric(vertical: 3.dp),
+                padding: EdgeInsets.fromLTRB(10.dp, 8.dp, 10.dp, 8.dp),
                 decoration: BoxDecoration(
                   color: marked
                       ? p.accent.withValues(alpha: p.dark ? 0.16 : 0.10)
                       : p.ink.withValues(alpha: p.dark ? 0.04 : 0.03),
-                  borderRadius: BorderRadius.circular(18.dp),
+                  borderRadius: BorderRadius.circular(15.dp),
                   border: Border.all(
                     color: marked
-                        ? p.accent.withValues(alpha: 0.85)
-                        : p.ink.withValues(alpha: 0.08),
+                      ? p.accent.withValues(alpha: 0.85)
+                      : p.ink.withValues(alpha: 0.08),
                     width: marked ? 1.6 : 1,
                   ),
                 ),
@@ -195,7 +195,7 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     lead,
-                    SizedBox(width: 12.dp),
+                    SizedBox(width: 10.dp),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +212,7 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
                                           text: '  $ext',
                                           style: TextStyle(
                                             color: p.sub,
-                                            fontSize: 13.sp,
+                                            fontSize: 12.sp,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -220,7 +220,7 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
                                   ),
                                   style: TextStyle(
                                     color: p.ink,
-                                    fontSize: 16.sp,
+                                    fontSize: 15.sp,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -229,8 +229,8 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
                                 SizedBox(width: 8.dp),
                                 Container(
                                   padding: EdgeInsets.symmetric(
-                                    horizontal: 8.dp,
-                                    vertical: 2.dp,
+                                    horizontal: 7.dp,
+                                    vertical: 1.5.dp,
                                   ),
                                   decoration: BoxDecoration(
                                     gradient: p.accentFill,
@@ -240,7 +240,7 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
                                     'Last used',
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 11.sp,
+                                      fontSize: 10.5.sp,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -248,17 +248,17 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
                               ],
                             ],
                           ),
-                          SizedBox(height: 2.dp),
+                          SizedBox(height: 1.dp),
                           Text(
                             where,
                             style: TextStyle(
                               color: p.sub,
-                              fontSize: 13.sp,
-                              height: 1.3,
+                              fontSize: 12.sp,
+                              height: 1.25,
                             ),
                           ),
                           if (below is! SizedBox) ...[
-                            SizedBox(height: 8.dp),
+                            SizedBox(height: 4.dp),
                             below,
                           ],
                         ],
@@ -292,17 +292,17 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
               onTap: other ? openOther : () => pick(label),
               child: Container(
                 padding: EdgeInsets.fromLTRB(
-                  12.dp,
-                  7.dp,
-                  other ? 8.dp : 12.dp,
-                  7.dp,
+                  10.dp,
+                  5.dp,
+                  other ? 6.dp : 10.dp,
+                  5.dp,
                 ),
                 decoration: BoxDecoration(
                   gradient: marked ? p.accentFill : null,
                   color: marked
                       ? null
                       : p.ink.withValues(alpha: p.dark ? 0.08 : 0.05),
-                  borderRadius: BorderRadius.circular(14.dp),
+                  borderRadius: BorderRadius.circular(12.dp),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -311,7 +311,7 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
                       other ? 'More' : label,
                       style: TextStyle(
                         color: marked ? Colors.white : p.ink,
-                        fontSize: 13.5.sp,
+                        fontSize: 12.5.sp,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -319,7 +319,7 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
                       SizedBox(width: 2.dp),
                       Icon(
                         CupertinoIcons.chevron_right,
-                        size: 13.dp,
+                        size: 12.dp,
                         color: p.sub,
                       ),
                     ],
@@ -352,29 +352,29 @@ Future<String?> showNewFileKind(BuildContext context, {String? last}) {
           );
 
           return Padding(
-            padding: EdgeInsets.fromLTRB(14.dp, 6.dp, 14.dp, 12.dp),
+            padding: EdgeInsets.fromLTRB(12.dp, 4.dp, 12.dp, 8.dp),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
-                    padding: EdgeInsets.fromLTRB(6.dp, 6.dp, 6.dp, 2.dp),
+                    padding: EdgeInsets.fromLTRB(4.dp, 2.dp, 4.dp, 1.dp),
                     child: Text(
                       'What are you making?',
                       style: TextStyle(
                         color: p.ink,
-                        fontSize: 20.sp,
+                        fontSize: 18.sp,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.3,
                       ),
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.fromLTRB(6.dp, 0, 6.dp, 6.dp),
+                    padding: EdgeInsets.fromLTRB(4.dp, 0, 4.dp, 4.dp),
                     child: Text(
                       'Blue icons: the formatting it keeps.',
-                      style: TextStyle(color: p.sub, fontSize: 13.sp),
+                      style: TextStyle(color: p.sub, fontSize: 12.sp),
                     ),
                   ),
                   kind(fileKindNote),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -23,28 +25,41 @@ class GlassScaffold extends StatelessWidget {
     this.background,
     this.appBar,
     this.statusBarStyle = GlassStatusBarStyle.dark,
+    this.maxContentWidth,
   });
 
   final Widget body;
   final Widget? background;
-
-  /// The widest a screen's content grows. On a tablet or a phone in
-  /// landscape the background still fills the screen, but lists, the
-  /// editor and the bar sit in a centred column: cards stretched across a
-  /// 1,000-wide screen and lines of text that long are hard to read.
-  static const double maxContentWidth = 760;
   final GlassAppBar? appBar;
   final GlassStatusBarStyle statusBarStyle;
+  final double? maxContentWidth;
 
   @override
   Widget build(BuildContext context) {
     final overlay = statusBarStyle == GlassStatusBarStyle.light
         ? SystemUiOverlayStyle.light
         : SystemUiOverlayStyle.dark;
+    final stack = Stack(
+      children: [
+        Positioned.fill(child: body),
+        if (appBar != null)
+          Positioned(left: 0, top: 0, right: 0, child: appBar!),
+      ],
+    );
+    final content = maxContentWidth != null
+        ? Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContentWidth!),
+              child: stack,
+            ),
+          )
+        : stack;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlay.copyWith(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
         systemNavigationBarContrastEnforced: false,
       ),
       // The background sits OUTSIDE the Scaffold: the Scaffold shrinks its
@@ -57,19 +72,7 @@ class GlassScaffold extends StatelessWidget {
           Scaffold(
             backgroundColor: Colors.transparent,
             resizeToAvoidBottomInset: true,
-            body: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: maxContentWidth),
-                child: Stack(
-                  children: [
-                    Positioned.fill(child: body),
-                    if (appBar != null)
-                      Positioned(left: 0, top: 0, right: 0, child: appBar!),
-                  ],
-                ),
-              ),
-            ),
+            body: content,
           ),
         ],
       ),
@@ -149,14 +152,60 @@ class GlassAppBar extends StatelessWidget {
   }
 }
 
-/// A glass bottom sheet, as in the compass app: thick glass with a grabber,
-/// rounded on every corner and inset from the screen edge, swipe to dismiss,
-/// and NO dimming — the glass needs the screen behind it at its own
-/// brightness to read as glass. A tap outside still closes it.
+/// A glass bottom sheet: on phones it slides up smoothly as an ergonomic
+/// rounded floating card; on larger screens (tablets, foldables, desktop)
+/// it seamlessly presents as a centered floating liquid glass modal card.
 Future<T?> showGlassSheet<T>(
   BuildContext context, {
   required WidgetBuilder builder,
 }) {
+  final isWide = MediaQuery.sizeOf(context).width >= 720;
+  if (isWide) {
+    return showGeneralDialog<T>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black.withValues(alpha: 0.25),
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (ctx, anim1, anim2) => const SizedBox.shrink(),
+      transitionBuilder: (ctx, anim, secondaryAnim, child) {
+        final curve = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+        final dark = Theme.of(ctx).brightness == Brightness.dark;
+        final screenH = MediaQuery.sizeOf(ctx).height;
+        return Center(
+          child: FadeTransition(
+            opacity: curve,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.95, end: 1.0).animate(curve),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 480,
+                  maxHeight: math.min(640, screenH - 32),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: GlassSurface(
+                    radius: 24,
+                    thick: true,
+                    blur: 24,
+                    tint: dark
+                        ? Colors.black.withValues(alpha: 0.45)
+                        : Colors.white.withValues(alpha: 0.45),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: SingleChildScrollView(child: builder(ctx)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   return showModalBottomSheet<T>(
     context: context,
     backgroundColor: Colors.transparent,
@@ -164,25 +213,21 @@ Future<T?> showGlassSheet<T>(
     barrierColor: Colors.transparent,
     isScrollControlled: true,
     useSafeArea: true,
-    // A phone-width sheet on a tablet or in landscape, not a full-width
-    // strip with its rows spread across the screen.
     constraints: const BoxConstraints(maxWidth: 560),
     builder: (ctx) {
       final inset = MediaQuery.viewInsetsOf(ctx).bottom;
+      final dark = Theme.of(ctx).brightness == Brightness.dark;
       return Padding(
         padding: EdgeInsets.only(bottom: inset),
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 14),
             child: GlassSurface(
-              radius: 16,
+              radius: 20,
               thick: true,
-              // Denser than the cards: a sheet carries rows of text over
-              // whatever is behind it, and the + button bled through the
-              // last row. Still glass, just more frosted.
               blur: 18,
-              tint: Theme.of(ctx).brightness == Brightness.dark
+              tint: dark
                   ? Colors.black.withValues(alpha: 0.40)
                   : Colors.white.withValues(alpha: 0.40),
               padding: const EdgeInsets.only(top: 10),
@@ -202,8 +247,6 @@ Future<T?> showGlassSheet<T>(
                       ),
                     ),
                   ),
-                  // Scrolls when taller than the screen: the note's ⋯ menu
-                  // (seven rows) was cut off in landscape.
                   Flexible(child: SingleChildScrollView(child: builder(ctx))),
                 ],
               ),

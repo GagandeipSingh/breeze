@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show BoxWidthStyle;
 import 'dart:async';
 
@@ -1281,32 +1282,8 @@ class _EditorScreenState extends State<EditorScreen>
                           ),
                       ],
                     ),
-                    if (!_editing && !_finding)
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: 820.dp),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              _viewBar(p),
-                            ],
-                          ),
-                        ),
-                      ),
-                    if (_finding)
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: 760.dp),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              _findBar(p),
-                            ],
-                          ),
-                        ),
-                      ),
+                    if (!_editing && !_finding) _viewBar(p),
+                    if (_finding) _findBar(p),
                   ],
                 ),
               ),
@@ -1359,6 +1336,13 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// Reading: the actions float bottom-right, in the same glass pill as
   /// Home's bottom-left one, so the top bar is the file's name alone.
+  double get _canvasMaxWidth {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width >= 1000.dp) return 920.dp;
+    if (width >= 720.dp) return 840.dp;
+    return 760.dp;
+  }
+
   Widget _viewBar(Pal p) {
     Widget icon(IconData i, String label, VoidCallback onTap) => GlassPress(
       onTap: onTap,
@@ -1368,9 +1352,10 @@ class _EditorScreenState extends State<EditorScreen>
         child: Icon(i, size: 22.dp, color: p.ink),
       ),
     );
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     return Positioned(
       right: 16.dp,
-      bottom: MediaQuery.paddingOf(context).bottom + 14.dp,
+      bottom: math.max(bottomInset + 18.dp, 24.dp),
       child: GlassSurface(
         radius: 28.dp,
         thick: true,
@@ -1422,7 +1407,7 @@ class _EditorScreenState extends State<EditorScreen>
     };
     return Center(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 760.dp),
+        constraints: BoxConstraints(maxWidth: _canvasMaxWidth),
         child: Padding(
           padding: EdgeInsets.fromLTRB(20.dp, 10.dp, 20.dp, 0),
           child: Column(
@@ -1561,7 +1546,7 @@ class _EditorScreenState extends State<EditorScreen>
     );
     return Center(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 760.dp),
+        constraints: BoxConstraints(maxWidth: _canvasMaxWidth),
         child: Padding(
           padding: EdgeInsets.fromLTRB(20.dp, 10.dp, 20.dp, 0),
           child: Column(
@@ -1698,7 +1683,7 @@ class _EditorScreenState extends State<EditorScreen>
     if (_body.text.length > _bigRead) return _bigEditArea(p, s);
     return Center(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 760.dp),
+        constraints: BoxConstraints(maxWidth: _canvasMaxWidth),
         child: UnderlinedField(
           controller: _body,
           scroll: _scroll,
@@ -1871,7 +1856,7 @@ class _EditorScreenState extends State<EditorScreen>
     final style = _textStyle(p, s);
     return Center(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 760.dp),
+        constraints: BoxConstraints(maxWidth: _canvasMaxWidth),
         child: ListView.builder(
           controller: _scroll,
           padding: EdgeInsets.fromLTRB(20.dp, 8.dp, 20.dp, 120.dp),
@@ -2050,7 +2035,7 @@ class _EditorScreenState extends State<EditorScreen>
       return SelectionArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 760.dp),
+            constraints: BoxConstraints(maxWidth: _canvasMaxWidth),
             child: ListView.builder(
               controller: _scroll,
               padding: EdgeInsets.fromLTRB(20.dp, 0, 20.dp, 120.dp),
@@ -2118,7 +2103,7 @@ class _EditorScreenState extends State<EditorScreen>
       // full-width on phones.
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 760.dp),
+          constraints: BoxConstraints(maxWidth: _canvasMaxWidth),
           child: SizedBox(width: double.infinity, child: content),
         ),
       ),

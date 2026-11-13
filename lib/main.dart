@@ -11,6 +11,15 @@ import 'ui/scale.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
   // Phones are portrait by default (the editor's read mode allows landscape).
   // Large screens and unfolded foldables (>= 600 dp) support all orientations naturally.
   final view = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;

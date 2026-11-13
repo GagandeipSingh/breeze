@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/cupertino.dart';
@@ -164,18 +165,18 @@ class _ExtPickerState extends State<ExtPicker> {
           behavior: HitTestBehavior.opaque,
           onTap: () => done(k.$1),
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 7.dp, horizontal: 6.dp),
+            padding: EdgeInsets.symmetric(vertical: 4.5.dp, horizontal: 6.dp),
             child: Row(
               children: [
-                FileBadge(look: look, size: 32.dp),
-                SizedBox(width: 12.dp),
+                FileBadge(look: look, size: 28.dp),
+                SizedBox(width: 10.dp),
                 SizedBox(
-                  width: 72.dp,
+                  width: 68.dp,
                   child: Text(
                     k.$1,
                     style: TextStyle(
                       color: look.ink(p),
-                      fontSize: 15.sp,
+                      fontSize: 14.sp,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -185,15 +186,15 @@ class _ExtPickerState extends State<ExtPicker> {
                     k.$2,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: p.ink, fontSize: 14.5.sp),
+                    style: TextStyle(color: p.ink, fontSize: 13.5.sp),
                   ),
                 ),
                 if (isLast)
                   Container(
                     margin: EdgeInsets.only(left: 8.dp),
                     padding: EdgeInsets.symmetric(
-                      horizontal: 8.dp,
-                      vertical: 3.dp,
+                      horizontal: 7.dp,
+                      vertical: 2.dp,
                     ),
                     decoration: BoxDecoration(
                       gradient: p.accentFill,
@@ -203,7 +204,7 @@ class _ExtPickerState extends State<ExtPicker> {
                       'Last used',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 11.sp,
+                        fontSize: 10.5.sp,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -213,7 +214,7 @@ class _ExtPickerState extends State<ExtPicker> {
                     padding: EdgeInsets.only(left: 8.dp),
                     child: Icon(
                       CupertinoIcons.paintbrush,
-                      size: 15.dp,
+                      size: 14.dp,
                       color: p.accent.withValues(alpha: 0.85),
                     ),
                   ),
@@ -226,7 +227,7 @@ class _ExtPickerState extends State<ExtPicker> {
 
     return SizedBox(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(14.dp, 6.dp, 14.dp, 12.dp),
+        padding: EdgeInsets.fromLTRB(14.dp, 4.dp, 14.dp, 10.dp),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -238,7 +239,7 @@ class _ExtPickerState extends State<ExtPicker> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
-                    padding: EdgeInsets.fromLTRB(6.dp, 6.dp, 6.dp, 2.dp),
+                    padding: EdgeInsets.fromLTRB(6.dp, 4.dp, 6.dp, 2.dp),
                     child: Row(
                       children: [
                         if (widget.onBack != null)
@@ -257,7 +258,7 @@ class _ExtPickerState extends State<ExtPicker> {
                                 ),
                                 child: Icon(
                                   CupertinoIcons.chevron_left,
-                                  size: 20.dp,
+                                  size: 19.dp,
                                   color: p.ink,
                                 ),
                               ),
@@ -267,7 +268,7 @@ class _ExtPickerState extends State<ExtPicker> {
                           'Data or code',
                           style: TextStyle(
                             color: p.ink,
-                            fontSize: 20.sp,
+                            fontSize: 18.sp,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.3,
                           ),
@@ -276,10 +277,10 @@ class _ExtPickerState extends State<ExtPicker> {
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.fromLTRB(6.dp, 0, 6.dp, 10.dp),
+                    padding: EdgeInsets.fromLTRB(6.dp, 0, 6.dp, 8.dp),
                     child: Text(
                       'Type any extension, or pick one.',
-                      style: TextStyle(color: p.sub, fontSize: 13.sp),
+                      style: TextStyle(color: p.sub, fontSize: 12.sp),
                     ),
                   ),
                   TextField(
@@ -297,14 +298,14 @@ class _ExtPickerState extends State<ExtPicker> {
                     },
                     style: TextStyle(
                       color: p.ink,
-                      fontSize: 15.sp,
+                      fontSize: 14.5.sp,
                       fontWeight: FontWeight.w600,
                     ),
                     decoration: InputDecoration(
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16.dp,
-                        vertical: 13.dp,
+                        horizontal: 14.dp,
+                        vertical: 10.dp,
                       ),
                       counterText: '',
                       hintText: 'kt, rs, cpp…',
@@ -312,7 +313,7 @@ class _ExtPickerState extends State<ExtPicker> {
                       prefixText: '.',
                       prefixStyle: TextStyle(
                         color: p.accent,
-                        fontSize: 15.sp,
+                        fontSize: 14.5.sp,
                         fontWeight: FontWeight.w700,
                       ),
                       errorText: bad
@@ -321,12 +322,12 @@ class _ExtPickerState extends State<ExtPicker> {
                       filled: true,
                       fillColor: p.ink.withValues(alpha: p.dark ? 0.06 : 0.04),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14.dp),
+                        borderRadius: BorderRadius.circular(12.dp),
                         borderSide: BorderSide.none,
                       ),
                     ),
                   ),
-                  SizedBox(height: 8.dp),
+                  SizedBox(height: 6.dp),
                   Flexible(
                     child: matches.isEmpty
                         ? Padding(
@@ -336,12 +337,15 @@ class _ExtPickerState extends State<ExtPicker> {
                                   ? ''
                                   : 'Not one Breeze knows. It still works: saved '
                                         'as plain text with that extension.',
-                              style: TextStyle(color: p.sub, fontSize: 13.sp),
+                              style: TextStyle(color: p.sub, fontSize: 12.sp),
                             ),
                           )
                         : ConstrainedBox(
                             constraints: BoxConstraints(
-                              maxHeight: MediaQuery.sizeOf(ctx).height * 0.3,
+                              maxHeight: math.max(
+                                200.dp,
+                                MediaQuery.sizeOf(ctx).height * 0.35,
+                              ),
                             ),
                             child: ListView(
                               shrinkWrap: true,
@@ -355,7 +359,7 @@ class _ExtPickerState extends State<ExtPicker> {
                 ],
               ),
             ),
-            SizedBox(height: 10.dp),
+            SizedBox(height: 8.dp),
             // Quiet until there is something to use; then the accent button.
             Semantics(
               button: true,
@@ -364,7 +368,7 @@ class _ExtPickerState extends State<ExtPicker> {
                 onTap: ext == null ? null : () => done(ext),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
-                  height: 50.dp,
+                  height: 44.dp,
                   alignment: Alignment.center,
                   padding: EdgeInsets.symmetric(horizontal: 12.dp),
                   decoration: BoxDecoration(
@@ -372,7 +376,7 @@ class _ExtPickerState extends State<ExtPicker> {
                     color: ext == null
                         ? p.ink.withValues(alpha: p.dark ? 0.06 : 0.05)
                         : null,
-                    borderRadius: BorderRadius.circular(16.dp),
+                    borderRadius: BorderRadius.circular(14.dp),
                   ),
                   child: Text(
                     ext == null ? 'Type an extension' : 'Use $ext  ·  $what',
@@ -380,7 +384,7 @@ class _ExtPickerState extends State<ExtPicker> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: ext == null ? p.sub : Colors.white,
-                      fontSize: 15.5.sp,
+                      fontSize: 14.5.sp,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

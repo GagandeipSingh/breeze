@@ -134,19 +134,24 @@ class Pane extends StatelessWidget {
     this.padding,
     this.tint,
     this.radius,
+    this.expand = false,
   });
   final Widget child;
   final EdgeInsets? padding;
   final Color? tint;
   final double? radius;
+  final bool expand;
 
   @override
-  Widget build(BuildContext context) => GlassSurface(
-    radius: radius ?? 26.dp,
-    padding: padding ?? EdgeInsets.fromLTRB(18.dp, 16.dp, 18.dp, 16.dp),
-    tint: tint,
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    final surface = GlassSurface(
+      radius: radius ?? 26.dp,
+      padding: padding ?? EdgeInsets.fromLTRB(18.dp, 16.dp, 18.dp, 16.dp),
+      tint: tint,
+      child: child,
+    );
+    return expand ? SizedBox.expand(child: surface) : surface;
+  }
 }
 
 class Gap extends StatelessWidget {

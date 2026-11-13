@@ -385,6 +385,33 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         this.savedInstanceState = savedInstanceState
         super.onCreate(savedInstanceState)
+
+        // Edge-to-edge: extend the app completely to the bottom edge under system bars with zero black bar
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
+
+        // Lock display to high refresh rate (120Hz) to prevent Motorola OLED 60Hz <-> 120Hz gamma flicker
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            try {
+                val d = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    display
+                } else {
+                    @Suppress("DEPRECATION")
+                    windowManager.defaultDisplay
+                }
+                val highMode = d?.supportedModes?.maxByOrNull { it.refreshRate }
+                if (highMode != null) {
+                    val params = window.attributes
+                    params.preferredDisplayModeId = highMode.modeId
+                    window.attributes = params
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     /** Marks a VIEW/EDIT intent as handled, so nothing reads it twice. */

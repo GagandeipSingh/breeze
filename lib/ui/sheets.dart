@@ -502,14 +502,25 @@ class _SheetButton extends StatelessWidget {
       child: GlassSurface(
         radius: 14.dp,
         thick: true,
-        tint: filled ? accent.withValues(alpha: p.dark ? 0.82 : 0.92) : null,
+        gradient: filled
+            ? (danger
+                ? const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFE5484D), Color(0xFFC52B30)],
+                  )
+                : p.accentFill)
+            : null,
+        tint: (!filled && danger)
+            ? accent.withValues(alpha: p.dark ? 0.18 : 0.10)
+            : null,
         child: SizedBox(
           height: 48.dp,
           child: Center(
             child: Text(
               label,
               style: TextStyle(
-                color: filled ? Colors.white : p.ink,
+                color: filled ? Colors.white : (danger ? accent : p.ink),
                 fontSize: 15.5.sp,
                 fontWeight: FontWeight.w600,
               ),

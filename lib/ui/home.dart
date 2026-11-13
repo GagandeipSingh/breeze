@@ -2,6 +2,7 @@ import 'dart:ui' show BoxWidthStyle;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:archive/archive_io.dart';
 import 'package:flutter/cupertino.dart';
@@ -945,7 +946,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Focus(
         autofocus: true,
         child: PopScope(
-      canPop: !busy,
+      canPop: !busy && !_selecting && !_fabOpen && !_recentMode && !_pinnedMode && !_searchOpen,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         if (_selecting) {
@@ -978,7 +979,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               Column(
                 children: [
-                  SizedBox(height: MediaQuery.paddingOf(context).top + 10.dp),
+                  SizedBox(height: MediaQuery.paddingOf(context).top + 2.dp),
                   _header(p, s, store),
                   Expanded(
                     child: store.loading
@@ -1029,19 +1030,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               // While typing a search the keyboard is up: the bar and the
               // + would float over the results being looked for.
               else if (MediaQuery.viewInsetsOf(context).bottom == 0)
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: 1200.dp),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        _bottomBar(p),
-                        _fab(p),
-                      ],
-                    ),
+                if (MediaQuery.sizeOf(context).width >= 720.dp)
+                  _desktopDock(p)
+                else
+                  Stack(
+                    children: [
+                      _bottomBar(p),
+                      _fab(p),
+                    ],
                   ),
-                ),
             ],
           ),
         ),
@@ -1115,20 +1112,57 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    final pad = EdgeInsets.fromLTRB(16, 4.dp, 16, 120.dp);
+    final width = MediaQuery.sizeOf(context).width;
+    final isWide = width >= 720.dp;
+    final pad = EdgeInsets.fromLTRB(
+      isWide ? 24.dp : 16,
+      4.dp,
+      isWide ? 24.dp : 16,
+      120.dp,
+    );
     if (layout == ListLayout.grid) {
       return Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 1200.dp),
+          constraints: BoxConstraints(maxWidth: 1600.dp),
           child: Scrollbar(
             child: GridView.builder(
               padding: pad,
-              // Two across on a phone, more where the screen is wider.
               gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                 maxCrossAxisExtent: 260.dp,
                 mainAxisSpacing: 10.dp,
                 crossAxisSpacing: 10.dp,
                 mainAxisExtent: 196.dp,
+              ),
+              itemCount: notes.length,
+              itemBuilder: (c, i) => place(i, notes[i], tile(notes[i])),
+            ),
+          ),
+        ),
+      );
+    }
+    if (isWide) {
+      final double cardHeight;
+      if (layout == ListLayout.compact) {
+        cardHeight = 52.dp;
+      } else if (layout == ListLayout.detailed) {
+        cardHeight = 126.dp;
+      } else {
+        cardHeight = 84.dp;
+      }
+      final double maxExtent = layout == ListLayout.compact ? 420.dp : 480.dp;
+      final gap = layout == ListLayout.compact ? 8.dp : 12.dp;
+
+      return Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 1600.dp),
+          child: Scrollbar(
+            child: GridView.builder(
+              padding: pad,
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: maxExtent,
+                mainAxisSpacing: gap,
+                crossAxisSpacing: gap,
+                mainAxisExtent: cardHeight,
               ),
               itemCount: notes.length,
               itemBuilder: (c, i) => place(i, notes[i], tile(notes[i])),
@@ -1156,10 +1190,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _selectBar(Pal p) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     return Positioned(
       left: 16,
       right: 16,
-      bottom: MediaQuery.paddingOf(context).bottom + 14.dp,
+      bottom: math.max(bottomInset + 18.dp, 24.dp),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 760.dp),
@@ -1236,13 +1271,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _header(Pal p, Settings s, NoteStore store) {
+    final isWide = MediaQuery.sizeOf(context).width >= 720.dp;
     return Center(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 1200.dp),
+        constraints: BoxConstraints(maxWidth: 1600.dp),
         child: Padding(
           // The cards' own edges: the mark lines up over the card text's
           // badges and the pill ends where the cards end.
-          padding: EdgeInsets.fromLTRB(16, 6.dp, 16, 6.dp),
+          padding: EdgeInsets.fromLTRB(isWide ? 24.dp : 16, 0.dp, isWide ? 24.dp : 16, 6.dp),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1354,6 +1390,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _recentMode ? 'Back to my files' : 'Recent files',
           _toggleRecent,
           on: _recentMode,
+          dy: -0.4,
         ),
         _pillIcon(
           CupertinoIcons.pin,
@@ -1481,11 +1518,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _TagChip(label: '+', selected: false, outline: true, onTap: _addTag),
       SizedBox(width: 8.dp),
     ];
-    final many = tags.length >= _manyTags;
+    final maxVisibleTags =
+        (MediaQuery.sizeOf(context).width / 130.dp).floor().clamp(_manyTags, 16);
+    final many = tags.length >= maxVisibleTags;
     final row = ListView(
       scrollDirection: Axis.horizontal,
       // With the all-tags button, the last chip scrolls clear of it.
-      padding: EdgeInsets.only(right: many ? 46.dp : 0),
+      padding: EdgeInsets.only(left: 4.dp, right: many ? 46.dp : 0),
       children: chips,
     );
     if (!many) return row;
@@ -1726,6 +1765,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ),
   );
 
+  Widget _bottomBarRow(Pal p) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _barIcon(
+          CupertinoIcons.settings,
+          'Settings',
+          () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+        ),
+        _barIcon(
+          _layoutIcon(SettingsScope.of(context).listLayout),
+          'View',
+          _viewMenu,
+        ),
+        _barIcon(CupertinoIcons.sort_down, 'Sort', _sortMenu),
+        _barIcon(
+          CupertinoIcons.trash,
+          'Trash',
+          () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const TrashScreen())),
+        ),
+      ],
+    );
+  }
+
   Widget _bottomBar(Pal p) {
     return Positioned(
       left: 16,
@@ -1734,28 +1801,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         radius: 28.dp,
         thick: true,
         padding: EdgeInsets.symmetric(horizontal: 6.dp, vertical: 4.dp),
-        child: Row(
+        child: _bottomBarRow(p),
+      ),
+    );
+  }
+
+  Widget _desktopDock(Pal p) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: math.max(bottomInset + 18.dp, 24.dp),
+        ),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            _barIcon(
-              CupertinoIcons.settings,
-              'Settings',
-              () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
-            ),
-            _barIcon(
-              _layoutIcon(SettingsScope.of(context).listLayout),
-              'View',
-              _viewMenu,
-            ),
-            _barIcon(CupertinoIcons.sort_down, 'Sort', _sortMenu),
-            _barIcon(
-              CupertinoIcons.trash,
-              'Trash',
-              () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const TrashScreen())),
+            _fabSpeedDial(centered: true),
+            GlassSurface(
+              radius: 28.dp,
+              thick: true,
+              padding: EdgeInsets.fromLTRB(6.dp, 4.dp, 6.dp, 4.dp),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _bottomBarRow(p),
+                  Container(
+                    width: 1,
+                    height: 24.dp,
+                    color: p.faint,
+                    margin: EdgeInsets.symmetric(horizontal: 8.dp),
+                  ),
+                  _fabButton(p, size: 44),
+                ],
+              ),
             ),
           ],
         ),
@@ -1864,8 +1945,67 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       );
 
+  Widget _fabButton(Pal p, {double size = 54}) {
+    final radius = size / 2;
+    return GlassPress(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _fabOpen = !_fabOpen);
+      },
+      label: 'New',
+      child: SizedBox.square(
+        dimension: size.dp,
+        child: GlassSurface(
+          radius: radius.dp,
+          thick: true,
+          gradient: p.accentFill,
+          child: Center(
+            child: AnimatedRotation(
+              turns: _fabOpen ? 0.125 : 0,
+              duration: const Duration(milliseconds: 180),
+              child: Icon(
+                CupertinoIcons.add,
+                color: Colors.white,
+                size: (size * 0.42).dp,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _fabSpeedDial({bool centered = false}) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      child: _fabOpen
+          ? Padding(
+              padding: EdgeInsets.only(
+                bottom: 12.dp,
+                right: centered ? 0 : 3.dp,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment:
+                    centered ? CrossAxisAlignment.center : CrossAxisAlignment.end,
+                children: [
+                  _miniFab(CupertinoIcons.folder, 'Open file', _browse),
+                  SizedBox(height: 12.dp),
+                  _miniFab(
+                    CupertinoIcons.square_pencil,
+                    'New note',
+                    _newNote,
+                  ),
+                ],
+              ),
+            )
+          : const SizedBox.shrink(),
+    );
+  }
+
   Widget _fab(Pal p) {
-    final bottom = MediaQuery.paddingOf(context).bottom + 14.dp;
+    final bottom = MediaQuery.paddingOf(context).bottom + 18.dp;
     return Positioned(
       right: 16,
       bottom: bottom,
@@ -1873,56 +2013,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            child: _fabOpen
-                // Right inset = half the size difference (54 vs 48), so the
-                // small circles sit centred over the big one.
-                ? Padding(
-                    padding: EdgeInsets.only(right: 3.dp),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _miniFab(CupertinoIcons.folder, 'Open file', _browse),
-                        SizedBox(height: 12.dp),
-                        _miniFab(
-                          CupertinoIcons.square_pencil,
-                          'New note',
-                          _newNote,
-                        ),
-                        SizedBox(height: 12.dp),
-                      ],
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-          GlassPress(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              setState(() => _fabOpen = !_fabOpen);
-            },
-            label: 'New',
-            child: SizedBox.square(
-              dimension: 54.dp,
-              child: GlassSurface(
-                radius: 27.dp,
-                thick: true,
-                gradient: p.accentFill,
-                child: Center(
-                  child: AnimatedRotation(
-                    turns: _fabOpen ? 0.125 : 0,
-                    duration: const Duration(milliseconds: 180),
-                    child: Icon(
-                      CupertinoIcons.add,
-                      color: Colors.white,
-                      size: 23.dp,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          _fabSpeedDial(centered: false),
+          _fabButton(p),
         ],
       ),
     );
