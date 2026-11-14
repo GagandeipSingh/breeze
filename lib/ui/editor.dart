@@ -29,6 +29,7 @@ import 'kit.dart';
 import 'lock_gate.dart';
 import 'scale.dart';
 import 'sheets.dart';
+import 'motion.dart';
 
 class EditorScreen extends StatefulWidget {
   const EditorScreen({
@@ -1116,8 +1117,10 @@ class _EditorScreenState extends State<EditorScreen>
       ..pal = p;
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () => _save(),
-        const SingleActivator(LogicalKeyboardKey.keyS, meta: true): () => _save(),
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () =>
+            _save(),
+        const SingleActivator(LogicalKeyboardKey.keyS, meta: true): () =>
+            _save(),
         const SingleActivator(LogicalKeyboardKey.keyF, control: true): () {
           setState(() => _finding = !_finding);
         },
@@ -1137,158 +1140,164 @@ class _EditorScreenState extends State<EditorScreen>
       child: Focus(
         autofocus: true,
         child: PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        final ok = await _onWillPop();
-        if (ok && context.mounted) Navigator.of(context).pop();
-      },
-      child: GlassScaffold(
-        background: const GradientBackground(),
-        statusBarStyle: p.dark
-            ? GlassStatusBarStyle.light
-            : GlassStatusBarStyle.dark,
-        appBar: GlassAppBar(
-          centerTitle: false,
-          leading: Padding(
-            padding: EdgeInsets.only(left: 8.dp),
-            child: RoundGlassButton(
-              icon: CupertinoIcons.chevron_back,
-              semanticLabel: 'Back',
-              onPressed: () async {
-                final ok = await _onWillPop();
-                if (ok && context.mounted) Navigator.of(context).pop();
-              },
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) async {
+            if (didPop) return;
+            final ok = await _onWillPop();
+            if (ok && context.mounted) Navigator.of(context).pop();
+          },
+          child: GlassScaffold(
+            background: const GradientBackground(),
+            statusBarStyle: p.dark
+                ? GlassStatusBarStyle.light
+                : GlassStatusBarStyle.dark,
+            appBar: GlassAppBar(
+              centerTitle: false,
+              leading: Padding(
+                padding: EdgeInsets.only(left: 8.dp),
+                child: RoundGlassButton(
+                  icon: CupertinoIcons.chevron_back,
+                  semanticLabel: 'Back',
+                  onPressed: () async {
+                    final ok = await _onWillPop();
+                    if (ok && context.mounted) Navigator.of(context).pop();
+                  },
+                ),
+              ),
+              // Reading: the name has the whole bar (its actions are at the
+              // bottom), and a long one wraps rather than ending in "...".
+              // Reading: the bar is Back alone; the name is the page's heading
+              // (below), where a long one has room to wrap.
+              title: null,
+              // While locked the bar offers nothing: Print and File info read
+              // the text that is still held after a re-lock.
+              actions: _locked || !_editing
+                  ? const []
+                  : [
+                      Padding(
+                        padding: EdgeInsets.only(right: 10.dp),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Landscape for comfortable reading; only in read mode.
+                            if (!_editing) ...[
+                              RoundGlassButton(
+                                icon: _landscape
+                                    ? Icons.stay_current_portrait_rounded
+                                    : Icons.screen_rotation_rounded,
+                                bold: !_landscape,
+                                semanticLabel: _landscape
+                                    ? 'Back to portrait'
+                                    : 'Rotate for reading',
+                                onPressed: _toggleLandscape,
+                              ),
+                              SizedBox(width: 8.dp),
+                            ],
+                            RoundGlassButton(
+                              icon: _editing
+                                  ? Icons.visibility_rounded
+                                  : Icons.edit_rounded,
+                              semanticLabel: _editing ? 'Read mode' : 'Edit',
+                              onPressed: _toggleEdit,
+                            ),
+                            SizedBox(width: 8.dp),
+                            RoundGlassButton(
+                              icon: CupertinoIcons.ellipsis,
+                              semanticLabel: 'More',
+                              onPressed: _overflow,
+                            ),
+                            // Save is the screen's one primary action: the only filled
+                            // button, last in the row where the thumb ends up.
+                            if (_editing) ...[
+                              SizedBox(width: 8.dp),
+                              RoundGlassButton(
+                                icon: CupertinoIcons.checkmark_alt,
+                                semanticLabel: 'Save',
+                                // Accent glass, as the home screen's + button: the
+                                // colour reads through the pane rather than over it.
+                                gradient: p.accentFill,
+                                iconColor: Colors.white,
+                                // Saves, closes the editor into the read view,
+                                // and says "Saved" once the keyboard is down: a
+                                // message shown while it slides away is missed.
+                                onPressed: () async {
+                                  HapticFeedback.selectionClick();
+                                  _heldToast = null;
+                                  final saved = await _save(hold: true);
+                                  if (!mounted) return;
+                                  if (saved &&
+                                      _editing &&
+                                      _note != null &&
+                                      !_hasChanges) {
+                                    _toggleEdit();
+                                    await _keyboardClosed();
+                                  }
+                                  final message = _heldToast;
+                                  _heldToast = null;
+                                  if (message != null && mounted) {
+                                    showToast(
+                                      this.context,
+                                      message: message,
+                                      icon: CupertinoIcons.checkmark_alt,
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
             ),
-          ),
-          // Reading: the name has the whole bar (its actions are at the
-          // bottom), and a long one wraps rather than ending in "...".
-          // Reading: the bar is Back alone; the name is the page's heading
-          // (below), where a long one has room to wrap.
-          title: null,
-          // While locked the bar offers nothing: Print and File info read
-          // the text that is still held after a re-lock.
-          actions: _locked || !_editing
-              ? const []
-              : [
-                  Padding(
-                    padding: EdgeInsets.only(right: 10.dp),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+            body: _locked
+                ? _lockedView(p)
+                : _loading
+                ? const SizedBox.shrink()
+                : Listener(
+                    onPointerDown: (_) {
+                      if (!_editing) {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                      }
+                    },
+                    child: Stack(
                       children: [
-                        // Landscape for comfortable reading; only in read mode.
-                        if (!_editing) ...[
-                          RoundGlassButton(
-                            icon: _landscape
-                                ? Icons.stay_current_portrait_rounded
-                                : Icons.screen_rotation_rounded,
-                            bold: !_landscape,
-                            semanticLabel: _landscape
-                                ? 'Back to portrait'
-                                : 'Rotate for reading',
-                            onPressed: _toggleLandscape,
-                          ),
-                          SizedBox(width: 8.dp),
-                        ],
-                        RoundGlassButton(
-                          icon: _editing
-                              ? Icons.visibility_rounded
-                              : Icons.edit_rounded,
-                          semanticLabel: _editing ? 'Read mode' : 'Edit',
-                          onPressed: _toggleEdit,
+                        Column(
+                          children: [
+                            SizedBox(height: GlassAppBar.bottomOf(context)),
+                            if (_editing) _editHeader(p) else _readHeader(p),
+                            if (_rtfReadOnly && !_editing) _readOnlyNote(p),
+                            Expanded(
+                              child: _editing && !_finding
+                                  ? _editArea(p, s)
+                                  : _readArea(p, s),
+                            ),
+                            // A huge file is formatted in the part being edited,
+                            // so the bar shows once a part is open.
+                            if (_editing &&
+                                _formatOn &&
+                                !_finding &&
+                                (!_big || _editingPart != null))
+                              ListenableBuilder(
+                                listenable: _formatTarget,
+                                builder: (_, _) => FormatBar(
+                                  state: formatStateOf(_formatTarget),
+                                  onAction: _format,
+                                  underline: _underlineStored,
+                                ),
+                              ),
+                          ],
                         ),
-                        SizedBox(width: 8.dp),
-                        RoundGlassButton(
-                          icon: CupertinoIcons.ellipsis,
-                          semanticLabel: 'More',
-                          onPressed: _overflow,
-                        ),
-                        // Save is the screen's one primary action: the only filled
-                        // button, last in the row where the thumb ends up.
-                        if (_editing) ...[
-                          SizedBox(width: 8.dp),
-                          RoundGlassButton(
-                            icon: CupertinoIcons.checkmark_alt,
-                            semanticLabel: 'Save',
-                            // Accent glass, as the home screen's + button: the
-                            // colour reads through the pane rather than over it.
-                            gradient: p.accentFill,
-                            iconColor: Colors.white,
-                            // Saves, closes the editor into the read view,
-                            // and says "Saved" once the keyboard is down: a
-                            // message shown while it slides away is missed.
-                            onPressed: () async {
-                              HapticFeedback.selectionClick();
-                              _heldToast = null;
-                              final saved = await _save(hold: true);
-                              if (!mounted) return;
-                              if (saved &&
-                                  _editing &&
-                                  _note != null &&
-                                  !_hasChanges) {
-                                _toggleEdit();
-                                await _keyboardClosed();
-                              }
-                              final message = _heldToast;
-                              _heldToast = null;
-                              if (message != null && mounted) {
-                                showToast(
-                                  this.context,
-                                  message: message,
-                                  icon: CupertinoIcons.checkmark_alt,
-                                );
-                              }
-                            },
-                          ),
-                        ],
+                        if (!_editing && !_finding)
+                          _springIn(_viewBar(p), const ValueKey('view-bar'), Offset(0, 80.dp)),
+                        if (_finding)
+                          _springIn(_findBar(p), const ValueKey('find-bar'), Offset(0, -40.dp)),
                       ],
                     ),
                   ),
-                ],
+          ),
         ),
-        body: _locked
-            ? _lockedView(p)
-            : _loading
-            ? const SizedBox.shrink()
-            : Listener(
-                onPointerDown: (_) {
-                  if (!_editing) FocusManager.instance.primaryFocus?.unfocus();
-                },
-                child: Stack(
-                  children: [
-                    Column(
-                      children: [
-                        SizedBox(height: GlassAppBar.bottomOf(context)),
-                        if (_editing) _editHeader(p) else _readHeader(p),
-                        if (_rtfReadOnly && !_editing) _readOnlyNote(p),
-                        Expanded(
-                          child: _editing && !_finding
-                              ? _editArea(p, s)
-                              : _readArea(p, s),
-                        ),
-                        // A huge file is formatted in the part being edited,
-                        // so the bar shows once a part is open.
-                        if (_editing &&
-                            _formatOn &&
-                            !_finding &&
-                            (!_big || _editingPart != null))
-                          ListenableBuilder(
-                            listenable: _formatTarget,
-                            builder: (_, _) => FormatBar(
-                              state: formatStateOf(_formatTarget),
-                              onAction: _format,
-                              underline: _underlineStored,
-                            ),
-                          ),
-                      ],
-                    ),
-                    if (!_editing && !_finding) _viewBar(p),
-                    if (_finding) _findBar(p),
-                  ],
-                ),
-              ),
       ),
-    )));
+    );
   }
 
   /// Read mode <-> edit mode (a read-only or foreign document asks first).
@@ -1339,11 +1348,13 @@ class _EditorScreenState extends State<EditorScreen>
   double get _canvasMaxWidth {
     final width = MediaQuery.sizeOf(context).width;
     if (width >= 1000.dp) return 920.dp;
-    if (width >= 720.dp) return 840.dp;
+    // A wide screen narrower than the cap (an unfolded foldable) keeps a
+    // margin either side rather than running the text to the edges.
+    if (isWideLayout(context)) return math.min(840.dp, width - 64.dp);
     return 760.dp;
   }
 
-  Widget _viewBar(Pal p) {
+  Positioned _viewBar(Pal p) {
     Widget icon(IconData i, String label, VoidCallback onTap) => GlassPress(
       onTap: onTap,
       label: label,
@@ -1559,7 +1570,8 @@ class _EditorScreenState extends State<EditorScreen>
                       selectionWidthStyle: BoxWidthStyle.tight,
                       // Off: the app is scaled to fit width, which puts Android's
                       // loupe in the wrong place and leaves it stuck on screen.
-                      magnifierConfiguration: TextMagnifierConfiguration.disabled,
+                      magnifierConfiguration:
+                          TextMagnifierConfiguration.disabled,
                       controller: _name,
                       // A file opened from elsewhere keeps its name (Android gives no
                       // right to rename it); an editable title only snapped back.
@@ -1862,80 +1874,80 @@ class _EditorScreenState extends State<EditorScreen>
           padding: EdgeInsets.fromLTRB(20.dp, 8.dp, 20.dp, 120.dp),
           itemCount: _chunks.length + 1,
           itemBuilder: (_, k) {
-        if (k == 0) {
-          return Padding(
-            padding: EdgeInsets.only(bottom: 8.dp),
-            child: Text(
-              'Large file: tap a part to edit it.',
-              style: style.copyWith(
-                color: p.sub,
-                fontSize: (style.fontSize ?? 16) * 0.8,
+            if (k == 0) {
+              return Padding(
+                padding: EdgeInsets.only(bottom: 8.dp),
+                child: Text(
+                  'Large file: tap a part to edit it.',
+                  style: style.copyWith(
+                    color: p.sub,
+                    fontSize: (style.fontSize ?? 16) * 0.8,
+                  ),
+                ),
+              );
+            }
+            final i = k - 1;
+            if (i == _editingPart) {
+              return UnderlinedField(
+                controller: _part,
+                child: TextField(
+                  selectionWidthStyle: BoxWidthStyle.tight,
+                  // Its own undo history per part: undo never brings another
+                  // part's text into this one.
+                  key: ValueKey('part$i'),
+                  magnifierConfiguration: TextMagnifierConfiguration.disabled,
+                  controller: _part,
+                  focusNode: _partFocus,
+                  undoController: _undo,
+                  maxLines: null,
+                  cursorColor: p.accent,
+                  keyboardType: TextInputType.multiline,
+                  textCapitalization: _isCode
+                      ? TextCapitalization.none
+                      : TextCapitalization.sentences,
+                  autocorrect: !_isCode,
+                  enableSuggestions: !_isCode,
+                  smartQuotesType: _isCode ? SmartQuotesType.disabled : null,
+                  smartDashesType: _isCode ? SmartDashesType.disabled : null,
+                  inputFormatters: [
+                    HiddenMarkerBackspace(_part),
+                    ContinueFormatting(_part),
+                    ListContinuation(() => _part.formatting),
+                  ],
+                  style: style,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                  ),
+                ),
+              );
+            }
+            // Read now, not when the list was built: typing in a part shifts
+            // the text and the parts after it without rebuilding the list.
+            final (a, b) = _chunks[i];
+            final piece = _body.text.substring(a, b);
+            return LayoutBuilder(
+              builder: (context, box) => GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                // The cursor goes where the part was tapped, as in a text box.
+                onTapUp: (d) {
+                  final tp = TextPainter(
+                    text: TextSpan(text: piece, style: style),
+                    textDirection: Directionality.of(context),
+                    textScaler: MediaQuery.textScalerOf(context),
+                  )..layout(maxWidth: box.maxWidth);
+                  final at = tp.getPositionForOffset(d.localPosition).offset;
+                  tp.dispose();
+                  _editPart(i, at: at);
+                },
+                child: Text(piece, style: style),
               ),
-            ),
-          );
-        }
-        final i = k - 1;
-        if (i == _editingPart) {
-          return UnderlinedField(
-            controller: _part,
-            child: TextField(
-              selectionWidthStyle: BoxWidthStyle.tight,
-              // Its own undo history per part: undo never brings another
-              // part's text into this one.
-              key: ValueKey('part$i'),
-              magnifierConfiguration: TextMagnifierConfiguration.disabled,
-              controller: _part,
-              focusNode: _partFocus,
-              undoController: _undo,
-              maxLines: null,
-              cursorColor: p.accent,
-              keyboardType: TextInputType.multiline,
-              textCapitalization: _isCode
-                  ? TextCapitalization.none
-                  : TextCapitalization.sentences,
-              autocorrect: !_isCode,
-              enableSuggestions: !_isCode,
-              smartQuotesType: _isCode ? SmartQuotesType.disabled : null,
-              smartDashesType: _isCode ? SmartDashesType.disabled : null,
-              inputFormatters: [
-                HiddenMarkerBackspace(_part),
-                ContinueFormatting(_part),
-                ListContinuation(() => _part.formatting),
-              ],
-              style: style,
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-              ),
-            ),
-          );
-        }
-        // Read now, not when the list was built: typing in a part shifts
-        // the text and the parts after it without rebuilding the list.
-        final (a, b) = _chunks[i];
-        final piece = _body.text.substring(a, b);
-        return LayoutBuilder(
-          builder: (context, box) => GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            // The cursor goes where the part was tapped, as in a text box.
-            onTapUp: (d) {
-              final tp = TextPainter(
-                text: TextSpan(text: piece, style: style),
-                textDirection: Directionality.of(context),
-                textScaler: MediaQuery.textScalerOf(context),
-              )..layout(maxWidth: box.maxWidth);
-              final at = tp.getPositionForOffset(d.localPosition).offset;
-              tp.dispose();
-              _editPart(i, at: at);
-            },
-            child: Text(piece, style: style),
-          ),
-        );
-      },
-    ),
-  ),
-);
+            );
+          },
+        ),
+      ),
+    );
   }
 
   /// Link taps of each piece of a huge file, freed when it is drawn again.
@@ -2098,13 +2110,17 @@ class _EditorScreenState extends State<EditorScreen>
     }
     return SingleChildScrollView(
       controller: _scroll,
-      padding: EdgeInsets.fromLTRB(20.dp, 0, 20.dp, 120.dp),
+      padding: EdgeInsets.only(bottom: 120.dp),
       // Centered on large screens / tablets for comfortable reading line length (approx 760dp),
-      // full-width on phones.
+      // full-width on phones. The 20 sits inside the column, as it does
+      // under the title, so the text lines up with the header above it.
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: _canvasMaxWidth),
-          child: SizedBox(width: double.infinity, child: content),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.dp),
+            child: SizedBox(width: double.infinity, child: content),
+          ),
         ),
       ),
     );
@@ -2244,7 +2260,19 @@ class _EditorScreenState extends State<EditorScreen>
     return out;
   }
 
-  Widget _findBar(Pal p) {
+  /// [bar] (a Positioned, so it must stay the Stack's direct child)
+  /// springing in from [from] inside its slot.
+  Widget _springIn(Positioned bar, Key key, Offset from) => Positioned(
+    left: bar.left,
+    top: bar.top,
+    right: bar.right,
+    bottom: bar.bottom,
+    width: bar.width,
+    height: bar.height,
+    child: SpringIn(key: key, from: from, child: bar.child),
+  );
+
+  Positioned _findBar(Pal p) {
     return Positioned(
       left: 16,
       right: 16,

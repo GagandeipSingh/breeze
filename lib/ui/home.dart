@@ -40,6 +40,7 @@ import 'scale.dart';
 import 'settings_screen.dart';
 import 'sheets.dart';
 import 'trash_screen.dart';
+import 'motion.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -75,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   RecentFiles? _recentFiles;
   String? _tag; // null = All
   bool _fabOpen = false;
+  int _fabPulses = 0; // taps on the +; each one stretches it once
 
   // Multi-select for sharing / zipping.
   bool _selecting = false;
@@ -946,109 +948,131 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Focus(
         autofocus: true,
         child: PopScope(
-      canPop: !busy && !_selecting && !_fabOpen && !_recentMode && !_pinnedMode && !_searchOpen,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (_selecting) {
-          _exitSelect();
-        } else if (_fabOpen) {
-          setState(() => _fabOpen = false);
-        } else if (_recentMode && !_searchOpen) {
-          setState(() => _recentMode = false);
-        } else if (_pinnedMode && !_searchOpen) {
-          setState(() => _pinnedMode = false);
-        } else if (_searchOpen) {
-          _searchCtrl.clear();
-          FocusManager.instance.primaryFocus?.unfocus();
-          setState(() {
-            _searchOpen = false;
-            _searchInside = false;
-          });
-        }
-      },
-      child: GlassScaffold(
-        background: const GradientBackground(),
-        statusBarStyle: p.dark
-            ? GlassStatusBarStyle.light
-            : GlassStatusBarStyle.dark,
-        body: Listener(
-          onPointerDown: (_) {
-            FocusManager.instance.primaryFocus?.unfocus();
+          canPop:
+              !busy &&
+              !_selecting &&
+              !_fabOpen &&
+              !_recentMode &&
+              !_pinnedMode &&
+              !_searchOpen,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            if (_selecting) {
+              _exitSelect();
+            } else if (_fabOpen) {
+              setState(() => _fabOpen = false);
+            } else if (_recentMode && !_searchOpen) {
+              setState(() => _recentMode = false);
+            } else if (_pinnedMode && !_searchOpen) {
+              setState(() => _pinnedMode = false);
+            } else if (_searchOpen) {
+              _searchCtrl.clear();
+              FocusManager.instance.primaryFocus?.unfocus();
+              setState(() {
+                _searchOpen = false;
+                _searchInside = false;
+              });
+            }
           },
-          child: Stack(
-            children: [
-              Column(
+          child: GlassScaffold(
+            background: const GradientBackground(),
+            statusBarStyle: p.dark
+                ? GlassStatusBarStyle.light
+                : GlassStatusBarStyle.dark,
+            body: Listener(
+              onPointerDown: (_) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
+              child: Stack(
                 children: [
-                  SizedBox(height: MediaQuery.paddingOf(context).top + 2.dp),
-                  _header(p, s, store),
-                  Expanded(
-                    child: store.loading
-                        ? const SizedBox.shrink()
-                        : _recentMode
-                        ? RecentList(
-                            items: _recentFiles?.items ?? const [],
-                            query: _searchOpen ? _query.trim() : '',
-                            onOpen: (f) async {
-                              final r = _recentFiles;
-                              if (r == null) return;
-                              await _openRecent(r, f);
-                              if (mounted) setState(() {});
-                            },
-                            onBrowse: () async {
-                              await _browse();
-                              if (mounted) setState(() {});
-                            },
-                            onRemove: _removeRecent,
-                          )
-                        : notes.isEmpty
-                        ? _empty(p)
-                        : AnimatedSwitcher(
-                            duration: MediaQuery.disableAnimationsOf(context)
-                                ? Duration.zero
-                                : const Duration(milliseconds: 220),
-                            switchInCurve: Curves.easeOutCubic,
-                            switchOutCurve: Curves.easeOutCubic,
-                            child: KeyedSubtree(
-                              key: ValueKey(s.listLayout),
-                              child: _fileList(notes, s.listLayout),
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-              // Tap-away scrim: closes the speed-dial without stealing the taps on
-              // the menu buttons themselves (which sit above it in the stack).
-              if (_fabOpen)
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() => _fabOpen = false),
-                  ),
-                ),
-              if (_selecting)
-                _selectBar(p)
-              // While typing a search the keyboard is up: the bar and the
-              // + would float over the results being looked for.
-              else if (MediaQuery.viewInsetsOf(context).bottom == 0)
-                if (MediaQuery.sizeOf(context).width >= 720.dp)
-                  _desktopDock(p)
-                else
-                  Stack(
+                  Column(
                     children: [
-                      _bottomBar(p),
-                      _fab(p),
+                      SizedBox(
+                        height: MediaQuery.paddingOf(context).top + 2.dp,
+                      ),
+                      _header(p, s, store),
+                      Expanded(
+                        child: store.loading
+                            ? const SizedBox.shrink()
+                            : _recentMode
+                            ? RecentList(
+                                items: _recentFiles?.items ?? const [],
+                                query: _searchOpen ? _query.trim() : '',
+                                onOpen: (f) async {
+                                  final r = _recentFiles;
+                                  if (r == null) return;
+                                  await _openRecent(r, f);
+                                  if (mounted) setState(() {});
+                                },
+                                onBrowse: () async {
+                                  await _browse();
+                                  if (mounted) setState(() {});
+                                },
+                                onRemove: _removeRecent,
+                              )
+                            : notes.isEmpty
+                            ? _empty(p)
+                            // Instant: glass can't be faded or zoomed (inside
+                            // a fade it sees an empty layer, inside a zoom its
+                            // edge is drawn out of place), and either flashed
+                            // white for a frame on every layout switch.
+                            : KeyedSubtree(
+                                // Compact, standard and detailed share one list,
+                                // so each card morphs between them; the grid is
+                                // a different shape and swaps.
+                                key: ValueKey(
+                                  s.listLayout == ListLayout.grid
+                                      ? 'grid'
+                                      : 'list',
+                                ),
+                                child: _fileList(notes, s.listLayout),
+                              ),
+                      ),
                     ],
                   ),
-            ],
+                  // Tap-away scrim: closes the speed-dial without stealing the taps on
+                  // the menu buttons themselves (which sit above it in the stack).
+                  if (_fabOpen)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => setState(() => _fabOpen = false),
+                      ),
+                    ),
+                  if (_selecting)
+                    _selectBar(p)
+                  // While typing a search the keyboard is up: the bar and the
+                  // + would float over the results being looked for.
+                  // Only the search's own keyboard hides it (a keyboard in a
+                  // rename sheet must not make the bar jump behind it).
+                  else if (!_searchOpen ||
+                      MediaQuery.viewInsetsOf(context).bottom == 0)
+                    // The bar springs back up when selecting or searching
+                    // ends, and stays put for everything else.
+                    SpringIn(
+                      key: const ValueKey('bar'),
+                      from: Offset(0, 90.dp),
+                      child: isWideLayout(context)
+                          ? _desktopDock(p)
+                          : Stack(children: [_bottomBar(p), _fab(p)]),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
-    )));
+    );
   }
 
   /// When the files first showed after launch: tiles built in the next
   /// moment play the entrance, later ones (scrolling, filtering) do not.
   DateTime? _introAt;
+
+  // Whether the last list built was the grid, and when it last swapped
+  // between grid and list (the cards then drop into place).
+  bool? _lastGrid;
+  DateTime? _swappedAt;
 
   /// Every file path at the last list build; null before the first.
   Set<String>? _shownPaths;
@@ -1069,11 +1093,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final before = _shownPaths;
     _shownPaths = all;
     bool fresh(Note n) => !intro && before != null && !before.contains(n.path);
+    // Grid and list are different shapes and cannot morph into each other,
+    // so a switch between them drops the new cards into place one after
+    // another on a spring instead.
+    final grid = layout == ListLayout.grid;
+    if (_lastGrid != null && _lastGrid != grid) _swappedAt = DateTime.now();
+    _lastGrid = grid;
+    final swapped =
+        _swappedAt != null &&
+        DateTime.now().difference(_swappedAt!) <
+            const Duration(milliseconds: 600);
     Widget place(int i, Note n, Widget child) => KeyedSubtree(
       key: ValueKey('tile:${n.path}'),
       child: _FreshIn(
         play: fresh(n),
-        child: _EntranceIn(index: i, play: intro, child: child),
+        child: _SwapIn(
+          index: i,
+          play: swapped && !intro,
+          child: _EntranceIn(index: i, play: intro, child: child),
+        ),
       ),
     );
     Widget tile(Note n) {
@@ -1112,8 +1150,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    final width = MediaQuery.sizeOf(context).width;
-    final isWide = width >= 720.dp;
+    final isWide = isWideLayout(context);
     final pad = EdgeInsets.fromLTRB(
       isWide ? 24.dp : 16,
       4.dp,
@@ -1141,7 +1178,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
     if (isWide) {
-      final double cardHeight;
+      double cardHeight;
       if (layout == ListLayout.compact) {
         cardHeight = 52.dp;
       } else if (layout == ListLayout.detailed) {
@@ -1149,8 +1186,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       } else {
         cardHeight = 84.dp;
       }
-      final double maxExtent = layout == ListLayout.compact ? 420.dp : 480.dp;
+      // The cells are a fixed height, so they grow with the phone's font
+      // size or a larger text overflows them (Detailed by 7dp at 1.25x).
+      final ts = MediaQuery.textScalerOf(context).scale(14) / 14;
+      cardHeight = cardHeight * math.max(1.0, ts);
+      // Two columns only when each still fits a whole name: on an unfolded
+      // foldable (about 560 wide inside the padding) two 280-wide columns cut
+      // every name short, so it keeps one wide column; a desktop window or a
+      // big tablet gets two.
       final gap = layout == ListLayout.compact ? 8.dp : 12.dp;
+      // Counted from the real room, in the same units as the screen, so the
+      // app's own scaling cannot tip a foldable into two cramped columns.
+      final room =
+          math.min(MediaQuery.sizeOf(context).width, 1600.dp) -
+          pad.horizontal;
+      const minColumn = 440.0;
+      final columns = ((room + gap) / (minColumn + gap)).floor().clamp(1, 4);
 
       return Center(
         child: ConstrainedBox(
@@ -1158,8 +1209,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: Scrollbar(
             child: GridView.builder(
               padding: pad,
-              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: maxExtent,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
                 mainAxisSpacing: gap,
                 crossAxisSpacing: gap,
                 mainAxisExtent: cardHeight,
@@ -1178,8 +1229,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Scrollbar(
           child: ListView.builder(
             padding: pad,
+            // Each card's glass is placed by where it is painted. With a
+            // boundary per card, a card pushed down by its growing
+            // neighbour moves without repainting, and its rim trails.
+            addRepaintBoundaries: false,
             itemCount: notes.length,
-            itemBuilder: (c, i) => Padding(
+            itemBuilder: (c, i) => AnimatedPadding(
+              duration: _morph(context),
+              curve: _spring,
               padding: EdgeInsets.only(bottom: gap),
               child: place(i, notes[i], tile(notes[i])),
             ),
@@ -1195,90 +1252,106 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       left: 16,
       right: 16,
       bottom: math.max(bottomInset + 18.dp, 24.dp),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 760.dp),
-          child: GlassSurface(
-            radius: 24.dp,
-            thick: true,
-            padding: EdgeInsets.symmetric(horizontal: 8.dp, vertical: 6.dp),
-            child: Row(
-          children: [
-            GlassPress(
-              onTap: _exitSelect,
-              label: 'Cancel',
-              child: Padding(
-                padding: EdgeInsets.all(10.dp),
-                child: Icon(CupertinoIcons.xmark, size: 20.dp, color: p.ink),
-              ),
-            ),
-            SizedBox(width: 6.dp),
-            Text(
-              '${_selected.length} selected',
-              style: TextStyle(
-                color: p.ink,
-                fontSize: 14.5.sp,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const Spacer(),
-            GlassPress(
-              onTap: _selected.isEmpty ? () {} : _deleteSelected,
-              label: 'Delete',
-              child: Padding(
-                padding: EdgeInsets.all(10.dp),
-                child: Icon(
-                  CupertinoIcons.trash,
-                  size: 21.dp,
-                  color: const Color(0xFFE5484D),
-                ),
-              ),
-            ),
-            SizedBox(width: 2.dp),
-            // One labelled button that asks HOW to send. A bare box icon for
-            // "ZIP" read as archive/hide, so nobody knew zipping existed.
-            GlassPress(
-              onTap: _selected.isEmpty ? () {} : _shareChoice,
-              label: 'Share',
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 12.dp,
-                  vertical: 10.dp,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(CupertinoIcons.share, size: 20.dp, color: p.accent),
-                    SizedBox(width: 6.dp),
-                    Text(
-                      'Share',
-                      style: TextStyle(
-                        color: p.accent,
-                        fontSize: 14.5.sp,
-                        fontWeight: FontWeight.w600,
+      child: SpringIn(
+        from: Offset(0, 90.dp),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 760.dp),
+            child: GlassSurface(
+              radius: 24.dp,
+              thick: true,
+              padding: EdgeInsets.symmetric(horizontal: 8.dp, vertical: 6.dp),
+              child: Row(
+                children: [
+                  GlassPress(
+                    onTap: _exitSelect,
+                    label: 'Cancel',
+                    child: Padding(
+                      padding: EdgeInsets.all(10.dp),
+                      child: Icon(
+                        CupertinoIcons.xmark,
+                        size: 20.dp,
+                        color: p.ink,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  SizedBox(width: 6.dp),
+                  Text(
+                    '${_selected.length} selected',
+                    style: TextStyle(
+                      color: p.ink,
+                      fontSize: 14.5.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  GlassPress(
+                    onTap: _selected.isEmpty ? () {} : _deleteSelected,
+                    label: 'Delete',
+                    child: Padding(
+                      padding: EdgeInsets.all(10.dp),
+                      child: Icon(
+                        CupertinoIcons.trash,
+                        size: 21.dp,
+                        color: const Color(0xFFE5484D),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 2.dp),
+                  // One labelled button that asks HOW to send. A bare box icon for
+                  // "ZIP" read as archive/hide, so nobody knew zipping existed.
+                  GlassPress(
+                    onTap: _selected.isEmpty ? () {} : _shareChoice,
+                    label: 'Share',
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12.dp,
+                        vertical: 10.dp,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            CupertinoIcons.share,
+                            size: 20.dp,
+                            color: p.accent,
+                          ),
+                          SizedBox(width: 6.dp),
+                          Text(
+                            'Share',
+                            style: TextStyle(
+                              color: p.accent,
+                              fontSize: 14.5.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
   }
 
   Widget _header(Pal p, Settings s, NoteStore store) {
-    final isWide = MediaQuery.sizeOf(context).width >= 720.dp;
+    final isWide = isWideLayout(context);
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 1600.dp),
         child: Padding(
           // The cards' own edges: the mark lines up over the card text's
           // badges and the pill ends where the cards end.
-          padding: EdgeInsets.fromLTRB(isWide ? 24.dp : 16, 0.dp, isWide ? 24.dp : 16, 6.dp),
+          padding: EdgeInsets.fromLTRB(
+            isWide ? 24.dp : 16,
+            0.dp,
+            isWide ? 24.dp : 16,
+            6.dp,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1322,20 +1395,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ],
                 ),
               ),
+              // Each header row springs down into place as it takes over.
               if (_searchOpen) ...[
                 // The field is 10dp taller than the chip row, so 5dp less gap
                 // keeps its centre on the chips' line and it does not drop.
                 SizedBox(height: 11.dp),
-                _searchField(p),
+                SpringIn(
+                  key: const ValueKey('hdr-search'),
+                  from: Offset(0, -14.dp),
+                  child: _searchField(p),
+                ),
               ] else if (_recentMode) ...[
                 SizedBox(height: 16.dp),
-                SizedBox(height: 34.dp, child: _recentBar(p)),
+                SpringIn(
+                  key: const ValueKey('hdr-recent'),
+                  from: Offset(0, -14.dp),
+                  child: SizedBox(height: 34.dp, child: _recentBar(p)),
+                ),
               ] else if (_pinnedMode) ...[
                 SizedBox(height: 16.dp),
-                SizedBox(height: 34.dp, child: _modeTitle(p, 'Pinned')),
+                SpringIn(
+                  key: const ValueKey('hdr-pinned'),
+                  from: Offset(0, -14.dp),
+                  child: SizedBox(
+                    height: 34.dp,
+                    child: _modeTitle(p, 'Pinned'),
+                  ),
+                ),
               ] else if (s.tagsEnabled) ...[
                 SizedBox(height: 16.dp),
-                SizedBox(height: 34.dp, child: _tagRow(p, store)),
+                SpringIn(
+                  key: const ValueKey('hdr-tags'),
+                  from: Offset(0, -14.dp),
+                  child: SizedBox(height: 34.dp, child: _tagRow(p, store)),
+                ),
               ],
               if (_searchOpen && _query.isNotEmpty && !_recentMode) ...[
                 SizedBox(height: 12.dp),
@@ -1518,8 +1611,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _TagChip(label: '+', selected: false, outline: true, onTap: _addTag),
       SizedBox(width: 8.dp),
     ];
-    final maxVisibleTags =
-        (MediaQuery.sizeOf(context).width / 130.dp).floor().clamp(_manyTags, 16);
+    final maxVisibleTags = (MediaQuery.sizeOf(context).width / 130.dp)
+        .floor()
+        .clamp(_manyTags, 16);
     final many = tags.length >= maxVisibleTags;
     final row = ListView(
       scrollDirection: Axis.horizontal,
@@ -1811,9 +1905,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Padding(
-        padding: EdgeInsets.only(
-          bottom: math.max(bottomInset + 18.dp, 24.dp),
-        ),
+        padding: EdgeInsets.only(bottom: math.max(bottomInset + 18.dp, 24.dp)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -1950,23 +2042,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return GlassPress(
       onTap: () {
         HapticFeedback.selectionClick();
-        setState(() => _fabOpen = !_fabOpen);
+        setState(() {
+          _fabOpen = !_fabOpen;
+          _fabPulses++;
+        });
       },
       label: 'New',
       child: SizedBox.square(
         dimension: size.dp,
-        child: GlassSurface(
-          radius: radius.dp,
-          thick: true,
-          gradient: p.accentFill,
-          child: Center(
-            child: AnimatedRotation(
-              turns: _fabOpen ? 0.125 : 0,
-              duration: const Duration(milliseconds: 180),
-              child: Icon(
-                CupertinoIcons.add,
-                color: Colors.white,
-                size: (size * 0.42).dp,
+        // On each tap the + stretches up toward its menu and springs back,
+        // so the menu reads as flowing out of the button.
+        child: TweenAnimationBuilder<double>(
+          key: ValueKey(_fabPulses),
+          tween: Tween(begin: _fabPulses == 0 ? 1 : 0, end: 1),
+          duration: motion(context, kSpringMs),
+          builder: (context, v, child) => Transform(
+            alignment: Alignment.bottomCenter,
+            transform: Matrix4.diagonal3Values(
+              1 - 0.05 * math.sin(math.pi * v),
+              1 + 0.16 * math.sin(math.pi * v),
+              1,
+            ),
+            child: child,
+          ),
+          child: GlassSurface(
+            radius: radius.dp,
+            thick: true,
+            gradient: p.accentFill,
+            child: Center(
+              child: AnimatedRotation(
+                turns: _fabOpen ? 0.125 : 0,
+                duration: motion(context, kSpringMs),
+                curve: kSpring,
+                child: Icon(
+                  CupertinoIcons.add,
+                  color: Colors.white,
+                  size: (size * 0.42).dp,
+                ),
               ),
             ),
           ),
@@ -1977,8 +2089,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _fabSpeedDial({bool centered = false}) {
     return AnimatedSize(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
+      duration: motion(context, kSpringMs),
+      curve: kSpring,
       child: _fabOpen
           ? Padding(
               padding: EdgeInsets.only(
@@ -1987,15 +2099,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment:
-                    centered ? CrossAxisAlignment.center : CrossAxisAlignment.end,
+                crossAxisAlignment: centered
+                    ? CrossAxisAlignment.center
+                    : CrossAxisAlignment.end,
                 children: [
-                  _miniFab(CupertinoIcons.folder, 'Open file', _browse),
+                  // Both flow up out of the + on a spring, so the menu
+                  // reads as coming from the button, not appearing beside it.
+                  SpringIn(
+                    from: Offset(0, 128.dp),
+                    scaleFrom: 0.5,
+                    child: _miniFab(
+                      CupertinoIcons.folder,
+                      'Open file',
+                      _browse,
+                    ),
+                  ),
                   SizedBox(height: 12.dp),
-                  _miniFab(
-                    CupertinoIcons.square_pencil,
-                    'New note',
-                    _newNote,
+                  SpringIn(
+                    from: Offset(0, 66.dp),
+                    scaleFrom: 0.5,
+                    child: _miniFab(
+                      CupertinoIcons.square_pencil,
+                      'New note',
+                      _newNote,
+                    ),
                   ),
                 ],
               ),
@@ -2012,10 +2139,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _fabSpeedDial(centered: false),
-          _fabButton(p),
-        ],
+        children: [_fabSpeedDial(centered: false), _fabButton(p)],
       ),
     );
   }
@@ -2681,19 +2805,60 @@ class _NoteTile extends StatelessWidget {
       actions: {
         CustomSemanticsAction(label: 'More for ${note.fullName}'): onMenu,
       },
-      child: GlassSurface(
-        radius: compact ? 16.dp : 20.dp,
-        tint: selected ? p.accent.withValues(alpha: 0.18) : null,
-        padding: grid
-            ? EdgeInsets.fromLTRB(14.dp, 12.dp, 4.dp, 12.dp)
-            : compact
-            ? EdgeInsets.fromLTRB(12.dp, 8.dp, 4.dp, 8.dp)
-            : EdgeInsets.fromLTRB(16.dp, 14.dp, 8.dp, 14.dp),
-        child: grid
-            ? _gridBody(p)
-            : compact
-            ? _compactBody(p)
-            : _listBody(p, detailed: layout == ListLayout.detailed),
+      // A layout change morphs the card: its height, corners and padding
+      // spring to the new shape while the old contents cross-fade into the
+      // new. Only the contents fade; the glass itself never sits inside a
+      // fade, where it would flash white.
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: compact ? 16.dp : 20.dp),
+        duration: _morph(context),
+        curve: _spring,
+        builder: (context, radius, child) => GlassSurface(
+          radius: radius,
+          tint: selected ? p.accent.withValues(alpha: 0.18) : null,
+          child: child!,
+        ),
+        child: AnimatedPadding(
+          duration: _morph(context),
+          curve: _spring,
+          padding: grid
+              ? EdgeInsets.fromLTRB(14.dp, 12.dp, 4.dp, 12.dp)
+              : compact
+              ? EdgeInsets.fromLTRB(12.dp, 8.dp, 4.dp, 8.dp)
+              : EdgeInsets.fromLTRB(16.dp, 14.dp, 8.dp, 14.dp),
+          child: AnimatedSize(
+            duration: _morph(context),
+            curve: _spring,
+            // Centred: in the wide layout a card is a fixed height, and its
+            // text sat at the top with a gap below it.
+            alignment: Alignment.centerLeft,
+            child: AnimatedSwitcher(
+              duration: _morph(context) * 0.6,
+              // The old contents leave fast, so the two never read as one
+              // muddle while the card changes shape.
+              reverseDuration: _morph(context) * 0.25,
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              layoutBuilder: (current, previous) => Stack(
+                alignment: Alignment.centerLeft,
+                clipBehavior: Clip.none,
+                children: [
+                  for (final w in previous)
+                    Positioned(left: 0, right: 0, top: 0, child: w),
+                  ?current,
+                ],
+              ),
+              child: KeyedSubtree(
+                key: ValueKey(layout),
+                child: grid
+                    ? _gridBody(p)
+                    : compact
+                    ? _compactBody(p)
+                    : _listBody(p, detailed: layout == ListLayout.detailed),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -2838,23 +3003,29 @@ class _NoteTile extends StatelessWidget {
       _badge(p, 44.dp),
       SizedBox(width: 14.dp),
       Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _name(p),
-            SizedBox(height: 3.dp),
-            _kindLine(
-              p,
-              detailed
-                  ? '${friendlyDate(note.modified, h24: h24)}  ·  ${humanSize(note.size)}'
-                  : friendlyDate(note.modified, h24: h24),
-            ),
-            if (detailed) ...[
-              SizedBox(height: 8.dp),
-              _Preview(note: note, lines: 2),
+        // Text lines carry room below the letters (descenders, line
+        // height), so a centred block reads high beside the badge; a few
+        // dp down puts the words on the card's middle.
+        child: Padding(
+          padding: EdgeInsets.only(top: detailed ? 0 : 4.dp),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _name(p),
+              SizedBox(height: 3.dp),
+              _kindLine(
+                p,
+                detailed
+                    ? '${friendlyDate(note.modified, h24: h24)}  ·  ${humanSize(note.size)}'
+                    : friendlyDate(note.modified, h24: h24),
+              ),
+              if (detailed) ...[
+                SizedBox(height: 8.dp),
+                _Preview(note: note, lines: 2),
+              ],
+              if (note.tags.isNotEmpty) ...[SizedBox(height: 8.dp), _tags(p)],
             ],
-            if (note.tags.isNotEmpty) ...[SizedBox(height: 8.dp), _tags(p)],
-          ],
+          ),
         ),
       ),
       _menu(p),
@@ -2920,36 +3091,37 @@ class _TagChip extends StatelessWidget {
           onTap: onTap,
           onLongPress: onLong,
           child: GlassSurface(
-          radius: 12.dp,
-          thick: true,
-          gradient: selected ? p.accentFill : null,
-          padding: EdgeInsets.symmetric(horizontal: isPlus ? 0 : 16.dp),
-          // 34: the home row's height, so a chip in the Tags sheet is the
-          // same size as the one in the row.
-          child: SizedBox(
-            height: 34.dp,
-            width: isPlus ? 44.dp : null,
-            // widthFactor 1: hug the label. A plain Center fills whatever width
-            // it is offered, which stretched a lone chip across the Tags sheet.
-            child: Center(
-              widthFactor: isPlus ? null : 1,
-              child: isPlus
-                  ? Icon(CupertinoIcons.add, size: 18.dp, color: p.ink)
-                  : Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: selected ? Colors.white : p.ink,
-                        fontSize: 13.5.sp,
-                        fontWeight: FontWeight.w600,
+            radius: 12.dp,
+            thick: true,
+            gradient: selected ? p.accentFill : null,
+            padding: EdgeInsets.symmetric(horizontal: isPlus ? 0 : 16.dp),
+            // 34: the home row's height, so a chip in the Tags sheet is the
+            // same size as the one in the row.
+            child: SizedBox(
+              height: 34.dp,
+              width: isPlus ? 44.dp : null,
+              // widthFactor 1: hug the label. A plain Center fills whatever width
+              // it is offered, which stretched a lone chip across the Tags sheet.
+              child: Center(
+                widthFactor: isPlus ? null : 1,
+                child: isPlus
+                    ? Icon(CupertinoIcons.add, size: 18.dp, color: p.ink)
+                    : Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: selected ? Colors.white : p.ink,
+                          fontSize: 13.5.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
   }
 }
 
@@ -3099,7 +3271,7 @@ class _EntranceInState extends State<_EntranceIn>
   @override
   Widget build(BuildContext context) {
     if (_v >= 1) return widget.child;
-    final t = Curves.easeOutCubic.transform(_v);
+    final t = kSpring.transform(_v);
     // No fade: hidden until its turn, then solid while it drops into place.
     // Clipped to its own slot: the tiles are see-through glass, and one
     // falling over the tile above showed THAT tile through its glass, so its
@@ -3158,13 +3330,59 @@ class _FreshInState extends State<_FreshIn> {
     if (!_play || MediaQuery.disableAnimationsOf(context)) return widget.child;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: kSpringMs),
       child: widget.child,
+      // Settles in on the spring; the fade rides a plain ease, since an
+      // opacity must never overshoot.
       builder: (context, v, child) => Opacity(
-        opacity: v,
-        child: Transform.scale(scale: 0.96 + 0.04 * v, child: child),
+        opacity: Curves.easeOut.transform(v.clamp(0.0, 1.0)),
+        child: Transform.scale(
+          scale: 0.94 + 0.06 * kSpring.transform(v),
+          child: child,
+        ),
       ),
+    );
+  }
+}
+
+/// The iOS feel for a shape changing: a quick spring that overshoots a
+/// touch and settles, rather than a flat ease.
+const Curve _spring = kSpring;
+
+Duration _morph(BuildContext context) => MediaQuery.disableAnimationsOf(context)
+    ? Duration.zero
+    : const Duration(milliseconds: kSpringMs);
+
+/// A card arriving after a grid/list switch: it rises the last few dp
+/// into its slot on a spring, a beat after the card before it. Moved by a
+/// transform the card repaints under, so its glass follows; never faded,
+/// since glass inside a fade flashes white.
+class _SwapIn extends StatefulWidget {
+  const _SwapIn({required this.index, required this.play, required this.child});
+  final int index;
+  final bool play;
+  final Widget child;
+
+  @override
+  State<_SwapIn> createState() => _SwapInState();
+}
+
+class _SwapInState extends State<_SwapIn> {
+  late final bool _play =
+      widget.play && !MediaQuery.disableAnimationsOf(context);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_play) return widget.child;
+    final step = 40 * widget.index.clamp(0, 10);
+    final total = kSpringMs + step;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(step / total, 1, curve: kSpring),
+      child: widget.child,
+      builder: (context, v, child) =>
+          Transform.translate(offset: Offset(0, 36.dp * (1 - v)), child: child),
     );
   }
 }

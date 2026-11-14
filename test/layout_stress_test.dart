@@ -106,15 +106,15 @@ void main() {
           await t.binding.handlePopRoute();
           await settle();
 
-          // Settings, scrolled to the end.
+          // Settings, scrolled to the end. On a big screen it is fitted to
+          // the screen and has nothing to scroll.
           await t.tap(find.byIcon(CupertinoIcons.settings).first);
           await settle();
-          await t.fling(
-            find.byType(Scrollable).first,
-            const Offset(0, -3000),
-            2000,
-          );
-          await settle();
+          final scroll = find.byType(Scrollable);
+          if (scroll.evaluate().isNotEmpty) {
+            await t.fling(scroll.first, const Offset(0, -3000), 2000);
+            await settle();
+          }
           await t.binding.handlePopRoute();
           await settle();
 
@@ -152,12 +152,16 @@ void main() {
           await t.binding.handlePopRoute();
           await settle();
 
-          // Every tag at once.
-          await t.tap(find.bySemanticsLabel('All tags').first);
-          await settle();
-          expect(find.text('Tags'), findsWidgets);
-          await t.tap(find.text('Recipes').last);
-          await settle();
+          // Every tag at once. The button is there only when the chips
+          // overflow the row; on a wide screen they all fit and it is not.
+          final allTags = find.bySemanticsLabel('All tags');
+          if (allTags.evaluate().isNotEmpty) {
+            await t.tap(allTags.first);
+            await settle();
+            expect(find.text('Tags'), findsWidgets);
+            await t.tap(find.text('Recipes').last);
+            await settle();
+          }
 
           // The clock switches the list to recent files, and back.
           await t.tap(find.byIcon(CupertinoIcons.clock).first);

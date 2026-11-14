@@ -15,6 +15,7 @@ import 'kit.dart';
 import 'lock_gate.dart';
 import 'scale.dart';
 import 'sheets.dart';
+import 'motion.dart';
 
 class TrashScreen extends StatefulWidget {
   const TrashScreen({super.key});
@@ -178,7 +179,7 @@ class _TrashScreenState extends State<TrashScreen> {
             Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width >= 720.dp ? 1400.dp : 760.dp,
+                  maxWidth: isWideLayout(context) ? 1400.dp : 760.dp,
                 ),
                 child: Padding(
                   padding: pagePadding(context),
@@ -226,7 +227,7 @@ class _TrashScreenState extends State<TrashScreen> {
                               bg: false,
                             ),
                           )
-                        : MediaQuery.sizeOf(context).width >= 720.dp
+                        : isWideLayout(context)
                         ? Scrollbar(
                             child: GridView.builder(
                               padding: EdgeInsets.only(

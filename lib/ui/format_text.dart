@@ -12,6 +12,7 @@ import '../logic/markdown_lite.dart';
 import 'glass_surface.dart';
 import 'kit.dart';
 import 'scale.dart';
+import 'motion.dart';
 
 /// Styling of one run, shared by the editor, read mode and (in spirit) PDF.
 TextStyle mdTextStyle(TextStyle base, int f, Pal p, {required bool editing}) {
@@ -1698,8 +1699,8 @@ class _BarButtonState extends State<_BarButton> {
         },
         child: AnimatedScale(
           scale: _down && !still ? 0.86 : 1,
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOutCubic,
+          duration: Duration(milliseconds: _down ? 120 : kSpringMs),
+          curve: _down ? Curves.easeOutCubic : kSpring,
           child: Padding(
             // Equal shares of the width: every button fits on any phone,
             // with nothing hidden behind a scroll.

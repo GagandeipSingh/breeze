@@ -41,6 +41,9 @@ dependency_overrides:
 
 flutter:
   uses-material-design: true
+  # The liquid glass lens drawn under floating controls (lib/ui/glass_surface.dart).
+  shaders:
+    - shaders/lens.frag
   assets:
     - assets/icon/
     - assets/fonts/NotoSansDevanagari-Regular.ttf

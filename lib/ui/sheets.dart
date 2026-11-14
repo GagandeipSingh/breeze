@@ -11,6 +11,7 @@ import 'glass_surface.dart';
 export 'glass_chrome.dart' show showGlassSheet;
 import 'kit.dart';
 import 'scale.dart';
+import 'motion.dart';
 
 /// A small glass toast near the bottom of the screen: an icon and a line of
 /// text, properly centred inside the glass (the package's GlassToast drifts
@@ -38,11 +39,23 @@ void showToast(
   final hasAction = actionLabel != null && onAction != null;
   late final OverlayEntry entry;
   var gone = false;
+  // Springs up from below the screen, and drops back out when it goes.
+  final shown = ValueNotifier<bool>(false);
+  final reduce = MediaQuery.disableAnimationsOf(context);
   void close() {
     if (gone) return;
     gone = true;
-    entry.remove();
     if (identical(_closeToast, close)) _closeToast = null;
+    if (reduce) {
+      entry.remove();
+      shown.dispose();
+      return;
+    }
+    shown.value = false;
+    Future.delayed(const Duration(milliseconds: 260), () {
+      entry.remove();
+      shown.dispose();
+    });
   }
 
   entry = OverlayEntry(
@@ -106,15 +119,30 @@ void showToast(
           ],
         ),
       );
-      return Positioned(
-        left: 16.dp,
-        right: 16.dp,
-        bottom: bottom,
+      final body = Center(
         // Phone width at most: on a tablet a toast is a pill, not a banner.
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: hasAction ? glass : IgnorePointer(child: glass),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: hasAction ? glass : IgnorePointer(child: glass),
+        ),
+      );
+      // Moved by its position, not a transform, so the glass is repainted
+      // where it is every frame (a transform would leave its rim behind).
+      return ValueListenableBuilder<bool>(
+        valueListenable: shown,
+        child: body,
+        builder: (ctx, on, child) => TweenAnimationBuilder<double>(
+          tween: Tween(end: on ? 1 : 0),
+          duration: Duration(
+            milliseconds: reduce ? 0 : (on ? kSpringSoftMs : 240),
+          ),
+          curve: on ? kSpringSoft : Curves.easeInCubic,
+          child: child,
+          builder: (ctx, v, child) => Positioned(
+            left: 16.dp,
+            right: 16.dp,
+            bottom: bottom - (bottom + 140.dp) * (1 - v),
+            child: child!,
           ),
         ),
       );
@@ -124,6 +152,9 @@ void showToast(
   _closeToast = close;
   old?.call();
   overlay.insert(entry);
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!gone) shown.value = true;
+  });
   // An action needs time to be read and reached.
   Future.delayed(
     hasAction && duration < const Duration(seconds: 4)
@@ -504,12 +535,12 @@ class _SheetButton extends StatelessWidget {
         thick: true,
         gradient: filled
             ? (danger
-                ? const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFFE5484D), Color(0xFFC52B30)],
-                  )
-                : p.accentFill)
+                  ? const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFE5484D), Color(0xFFC52B30)],
+                    )
+                  : p.accentFill)
             : null,
         tint: (!filled && danger)
             ? accent.withValues(alpha: p.dark ? 0.18 : 0.10)
@@ -656,7 +687,46 @@ Future<T?> showChoiceTiles<T>(
   required T selected,
 }) => showGlassSheet<T>(
   context,
-  builder: (ctx) {
+  // The pick lights up and springs before the sheet closes, so the
+  // choice is seen landing instead of the sheet vanishing under the finger.
+  builder: (ctx) =>
+      _ChoiceTiles<T>(title: title, options: options, selected: selected),
+);
+
+class _ChoiceTiles<T> extends StatefulWidget {
+  const _ChoiceTiles({
+    required this.title,
+    required this.options,
+    required this.selected,
+  });
+  final String title;
+  final List<(T value, IconData icon, String label)> options;
+  final T selected;
+
+  @override
+  State<_ChoiceTiles<T>> createState() => _ChoiceTilesState<T>();
+}
+
+class _ChoiceTilesState<T> extends State<_ChoiceTiles<T>> {
+  late T selected = widget.selected;
+  bool _closing = false;
+
+  void _pick(T v) {
+    if (_closing) return;
+    _closing = true;
+    HapticFeedback.selectionClick();
+    setState(() => selected = v);
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    Future.delayed(Duration(milliseconds: reduce ? 0 : 300), () {
+      if (mounted) Navigator.of(context).pop(v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctx = context;
+    final title = widget.title;
+    final options = widget.options;
     final p = Pal.of(ctx);
     return Padding(
       padding: EdgeInsets.fromLTRB(16.dp, 6.dp, 16.dp, 16.dp),
@@ -687,39 +757,52 @@ Future<T?> showChoiceTiles<T>(
                     label: o.$3,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        Navigator.of(ctx).pop(o.$1);
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        padding: EdgeInsets.symmetric(vertical: 14.dp),
-                        decoration: BoxDecoration(
-                          gradient: o.$1 == selected ? p.accentFill : null,
-                          color: o.$1 == selected
-                              ? null
-                              : p.ink.withValues(alpha: p.dark ? 0.05 : 0.04),
-                          borderRadius: BorderRadius.circular(16.dp),
+                      onTap: () => _pick(o.$1),
+                      child: TweenAnimationBuilder<double>(
+                        // Replays for the tile just picked: a little press
+                        // that springs back.
+                        key: ValueKey(o.$1 == selected && _closing),
+                        tween: Tween(begin: 0, end: 1),
+                        duration: const Duration(milliseconds: kSpringMs),
+                        curve: kSpring,
+                        builder: (context, v, child) => Transform.scale(
+                          scale: o.$1 == selected && _closing
+                              ? 0.9 + 0.1 * v
+                              : 1,
+                          child: child,
                         ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              o.$2,
-                              size: 22.dp,
-                              color: o.$1 == selected ? Colors.white : p.ink,
-                            ),
-                            SizedBox(height: 6.dp),
-                            Text(
-                              o.$3,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          padding: EdgeInsets.symmetric(vertical: 14.dp),
+                          decoration: BoxDecoration(
+                            gradient: o.$1 == selected ? p.accentFill : null,
+                            color: o.$1 == selected
+                                ? null
+                                : p.ink.withValues(alpha: p.dark ? 0.05 : 0.04),
+                            borderRadius: BorderRadius.circular(16.dp),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                o.$2,
+                                size: 22.dp,
                                 color: o.$1 == selected ? Colors.white : p.ink,
-                                fontSize: 13.sp,
-                                fontWeight: FontWeight.w600,
                               ),
-                            ),
-                          ],
+                              SizedBox(height: 6.dp),
+                              Text(
+                                o.$3,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: o.$1 == selected
+                                      ? Colors.white
+                                      : p.ink,
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -731,8 +814,8 @@ Future<T?> showChoiceTiles<T>(
         ],
       ),
     );
-  },
-);
+  }
+}
 
 /// A two-way switch drawn as one pill with the picked half lit.
 class SegmentedPick<T> extends StatelessWidget {

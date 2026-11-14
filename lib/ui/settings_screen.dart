@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../data/note_scope.dart';
@@ -21,8 +22,12 @@ class SettingsScreen extends StatelessWidget {
     final p = Pal.of(context);
     final s = SettingsScope.of(context);
     final store = NoteScope.of(context);
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isDesktop = screenWidth >= 900.dp;
+    final screen = MediaQuery.sizeOf(context);
+    // Two columns from ~760 wide, so an unfolded foldable gets them too,
+    // not just a desktop; and only with the height to hold them, as the
+    // page is fitted to the screen. A phone on its side is wide but short,
+    // and keeps the scrolling single column.
+    final isDesktop = screen.width >= 760.dp && screen.height >= 560.dp;
 
     return GlassScaffold(
       background: const GradientBackground(),
@@ -94,59 +99,63 @@ class SettingsScreen extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableHeight = constraints.maxHeight - clearTop - bottomInset;
-
-        return SingleChildScrollView(
+        // The whole page fits the screen, never scrolls, and spans the same
+        // width as the home list. When the two columns are taller than the
+        // room (an unfolded foldable), _FitToScreen lays them out wider and
+        // scales them down to fit, so they still fill the width edge to
+        // edge. A screen with room keeps it at full size.
+        return Padding(
           padding: EdgeInsets.fromLTRB(
-            36.dp,
+            24.dp,
             clearTop,
-            36.dp,
+            24.dp,
             bottomInset + 28.dp,
           ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: math.max(0, availableHeight - 32.dp),
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 1140.dp),
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Left Column: Look & Reading
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SectionTitle('Look'),
-                            Expanded(
-                              child: _desktopLookPane(context, p, s),
+          child: _FitToScreen(
+            child: SizedBox(
+              child: SizedBox(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: 1140.dp),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Left Column: Look & Reading
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SectionTitle('Look'),
+                                Expanded(
+                                  child: _desktopLookPane(context, p, s),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: 24.dp),
-                      // Right Column: Security & Feel
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SectionTitle('Security & Feel'),
-                            Expanded(
-                              child: _desktopSecurityAndFeelPane(
-                                context,
-                                p,
-                                s,
-                                store,
-                              ),
+                          ),
+                          SizedBox(width: 24.dp),
+                          // Right Column: Security & Feel
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SectionTitle('Security & Feel'),
+                                Expanded(
+                                  child: _desktopSecurityAndFeelPane(
+                                    context,
+                                    p,
+                                    s,
+                                    store,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -157,11 +166,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _desktopLookPane(
-    BuildContext context,
-    Pal p,
-    Settings s,
-  ) {
+  Widget _desktopLookPane(BuildContext context, Pal p, Settings s) {
     return Pane(
       expand: true,
       padding: EdgeInsets.fromLTRB(22.dp, 18.dp, 22.dp, 18.dp),
@@ -213,11 +218,7 @@ class SettingsScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(
-                    CupertinoIcons.paintbrush,
-                    size: 20.dp,
-                    color: p.accent,
-                  ),
+                  Icon(CupertinoIcons.paintbrush, size: 20.dp, color: p.accent),
                   SizedBox(width: 12.dp),
                   Text(
                     'Accent',
@@ -305,30 +306,12 @@ class SettingsScreen extends StatelessWidget {
                 if (await ensureCanLock(context, anyLocked: anyLocked)) {
                   s.lockFiles = true;
                 }
-              } else if (await authenticate(
-                context,
-                'Turn off file lock',
-              )) {
+              } else if (await authenticate(context, 'Turn off file lock')) {
                 s.lockFiles = false;
               }
             },
           ),
-          FutureBuilder<bool>(
-            future: hasBreezePin(),
-            builder: (context, snap) => snap.data != true
-                ? const SizedBox.shrink()
-                : Column(
-                    children: [
-                      const Hairline(),
-                      TapRow(
-                        icon: CupertinoIcons.number,
-                        label: 'Change Breeze PIN',
-                        hint: 'Used when phone has no screen lock',
-                        onTap: () => changePin(context),
-                      ),
-                    ],
-                  ),
-          ),
+          const _BreezePinRow(),
           const Hairline(),
           // File list layout
           Column(
@@ -453,30 +436,12 @@ class SettingsScreen extends StatelessWidget {
                 if (await ensureCanLock(context, anyLocked: anyLocked)) {
                   s.lockFiles = true;
                 }
-              } else if (await authenticate(
-                context,
-                'Turn off file lock',
-              )) {
+              } else if (await authenticate(context, 'Turn off file lock')) {
                 s.lockFiles = false;
               }
             },
           ),
-          FutureBuilder<bool>(
-            future: hasBreezePin(),
-            builder: (context, snap) => snap.data != true
-                ? const SizedBox.shrink()
-                : Column(
-                    children: [
-                      const Hairline(),
-                      TapRow(
-                        icon: CupertinoIcons.number,
-                        label: 'Change Breeze PIN',
-                        hint: 'Used when phone has no screen lock',
-                        onTap: () => changePin(context),
-                      ),
-                    ],
-                  ),
-          ),
+          const _BreezePinRow(),
         ],
       ),
     );
@@ -518,11 +483,7 @@ class SettingsScreen extends StatelessWidget {
           const Hairline(),
           Row(
             children: [
-              Icon(
-                CupertinoIcons.paintbrush,
-                size: 20.dp,
-                color: p.accent,
-              ),
+              Icon(CupertinoIcons.paintbrush, size: 20.dp, color: p.accent),
               SizedBox(width: 12.dp),
               Text(
                 'Accent',
@@ -641,12 +602,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _otherPane(
-    BuildContext context,
-    Pal p,
-    Settings s,
-    NoteStore store,
-  ) {
+  Widget _otherPane(BuildContext context, Pal p, Settings s, NoteStore store) {
     return Pane(
       child: Column(
         children: [
@@ -790,4 +746,169 @@ class _TextSizeRowState extends State<_TextSizeRow> {
       ],
     );
   }
+}
+
+/// The Breeze PIN row, always shown so the option is never a mystery:
+/// * a PIN exists: change it;
+/// * no screen lock and nothing locked yet: make one;
+/// * the phone has its own screen lock: greyed out, as that lock is used;
+/// * no screen lock but files already locked: greyed out. A PIN made now
+///   would open files that were locked under a screen lock since removed.
+class _BreezePinRow extends StatefulWidget {
+  const _BreezePinRow();
+
+  @override
+  State<_BreezePinRow> createState() => _BreezePinRowState();
+}
+
+class _BreezePinRowState extends State<_BreezePinRow> {
+  late Future<(bool, bool)> _state = _read();
+
+  static Future<(bool, bool)> _read() async =>
+      (await hasBreezePin(), await hasScreenLock());
+
+  void _refresh() => setState(() => _state = _read());
+
+  @override
+  Widget build(BuildContext context) {
+    final store = NoteScope.of(context);
+    final anyLocked =
+        store.notes.any((n) => n.locked) || store.anyTrashedLocked;
+    return FutureBuilder<(bool, bool)>(
+      future: _state,
+      builder: (context, snap) {
+        final (hasPin, hasLock) = snap.data ?? (false, true);
+        final String label;
+        final String hint;
+        VoidCallback? onTap;
+        if (hasPin) {
+          label = 'Change Breeze PIN';
+          hint = 'Used when the phone has no screen lock';
+          onTap = () async {
+            await changePin(context);
+            if (mounted) _refresh();
+          };
+        } else if (hasLock) {
+          label = 'Breeze PIN';
+          hint = "Not needed: your phone's screen lock protects files";
+        } else if (anyLocked) {
+          label = 'Breeze PIN';
+          hint = "Turn the phone's screen lock back on to open locked files";
+        } else {
+          label = 'Set Breeze PIN';
+          hint = 'Your phone has no screen lock; use a PIN instead';
+          onTap = () async {
+            await createPin(context);
+            if (mounted) _refresh();
+          };
+        }
+        final row = TapRow(
+          icon: CupertinoIcons.number,
+          label: label,
+          hint: hint,
+          onTap: onTap,
+          chevron: onTap != null,
+        );
+        return Column(
+          children: [
+            const Hairline(),
+            onTap == null
+                ? Semantics(
+                    enabled: false,
+                    child: Opacity(opacity: 0.45, child: row),
+                  )
+                : row,
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Fits its child to the box it is given without leaving side margins.
+///
+/// The child is laid out at the box's width, and if it is taller than the
+/// box, at a wider width instead, until it fits the height at the scale that
+/// maps that width back onto the box (a wider layout wraps fewer lines, so
+/// it is also shorter). It is then painted scaled down by that factor, so it
+/// spans the full width and the full height. A FittedBox could only shrink
+/// it about its centre, leaving empty margins on both sides.
+class _FitToScreen extends SingleChildRenderObjectWidget {
+  const _FitToScreen({required super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderFitToScreen();
+}
+
+class _RenderFitToScreen extends RenderProxyBox {
+  double _scale = 1;
+
+  Matrix4 get _transform => Matrix4.diagonal3Values(_scale, _scale, 1);
+
+  @override
+  void performLayout() {
+    final c = child!;
+    final w = constraints.maxWidth;
+    final h = constraints.maxHeight;
+    size = constraints.biggest;
+    if (!h.isFinite) {
+      c.layout(BoxConstraints.tightFor(width: w), parentUsesSize: true);
+      _scale = 1;
+      return;
+    }
+    // Laid out at width `x`, the child must fit the height h * x / w (the
+    // box's height as seen at that scale), and is asked to fill it.
+    bool fits(double x) {
+      final room = h * x / w;
+      c.layout(
+        BoxConstraints(minWidth: x, maxWidth: x, minHeight: room),
+        parentUsesSize: true,
+      );
+      return c.size.height <= room + 0.5;
+    }
+
+    if (fits(w)) {
+      _scale = 1;
+      return;
+    }
+    var lo = w, hi = w * 1.8;
+    if (fits(hi)) {
+      for (var i = 0; i < 8; i++) {
+        final mid = (lo + hi) / 2;
+        if (fits(mid)) {
+          hi = mid;
+        } else {
+          lo = mid;
+        }
+      }
+    }
+    fits(hi);
+    // Never taller than the box, even if the widest try did not fit.
+    _scale = math.min(w / hi, h / c.size.height);
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (_scale == 1) return super.paint(context, offset);
+    layer = context.pushTransform(
+      needsCompositing,
+      offset,
+      _transform,
+      (context, offset) => context.paintChild(child!, offset),
+      oldLayer: layer is TransformLayer ? layer as TransformLayer : null,
+    );
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      result.addWithPaintTransform(
+        transform: _transform,
+        position: position,
+        hitTest: (result, position) =>
+            child!.hitTest(result, position: position),
+      );
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) =>
+      transform.multiply(_transform);
 }

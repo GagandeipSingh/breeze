@@ -9,6 +9,7 @@ import '../state/settings.dart';
 import 'ambient.dart';
 import 'glass_surface.dart';
 import 'scale.dart';
+import 'motion.dart';
 
 /// Colours for text and accents on top of the glass.
 class Pal {
@@ -369,6 +370,7 @@ class GlassPress extends StatefulWidget {
 class _GlassPressState extends State<GlassPress> {
   bool _down = false;
   bool _hover = false;
+  Offset? _at; // the finger, in this button's own coordinates
   void _set(bool v) {
     if (_down != v) setState(() => _down = v);
   }
@@ -389,23 +391,39 @@ class _GlassPressState extends State<GlassPress> {
         onExit: (_) {
           if (_hover) setState(() => _hover = false);
         },
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (_) => _set(true),
-          onTapCancel: () => _set(false),
-          onTapUp: (_) => _set(false),
-          onTap: () {
-            HapticFeedback.lightImpact();
-            widget.onTap();
+        child: Listener(
+          // The glow follows the finger while it is down.
+          onPointerDown: (e) => setState(() => _at = e.localPosition),
+          onPointerMove: (e) {
+            if (_down) setState(() => _at = e.localPosition);
           },
-          onLongPress: widget.onLongPress,
-          child: AnimatedScale(
-            scale: _down && !still
-                ? 1.06
-                : (_hover && !still ? 1.02 : 1),
-            duration: Duration(milliseconds: _down ? 140 : 200),
-            curve: _down ? Curves.easeOutCubic : Curves.easeOutBack,
-            child: widget.builder?.call(_down) ?? widget.child,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (_) => _set(true),
+            onTapCancel: () => _set(false),
+            onTapUp: (_) => _set(false),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              widget.onTap();
+            },
+            onLongPress: widget.onLongPress,
+            // Swells quickly under the finger and springs back on release,
+            // keeping its speed if pressed again mid-bounce. The glow rides
+            // the same spring.
+            child: SpringValue(
+              value: _down && !still ? 1 : (_hover && !still ? 0.33 : 0),
+              stiffness: _down ? 420 : 180,
+              dampingRatio: _down ? 0.8 : 0.5,
+              child: widget.builder?.call(_down) ?? widget.child,
+              builder: (context, v, child) => Transform.scale(
+                scale: 1 + 0.06 * v,
+                child: PressGlow(
+                  point: _at,
+                  strength: v.clamp(0.0, 1.0),
+                  child: child!,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -509,7 +527,6 @@ class Segments<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
-    final still = MediaQuery.disableAnimationsOf(context);
     final height = 46.dp;
     final index = values.indexOf(selected).clamp(0, values.length - 1);
     return GlassSurface(
@@ -523,13 +540,15 @@ class Segments<T> extends StatelessWidget {
             final w = c.maxWidth / values.length;
             return Stack(
               children: [
-                AnimatedPositioned(
-                  duration: Duration(milliseconds: still ? 0 : 260),
-                  curve: Curves.easeOutCubic,
-                  left: w * index,
-                  top: 0,
-                  bottom: 0,
-                  width: w,
+                SpringValue(
+                  value: index.toDouble(),
+                  builder: (context, at, child) => Positioned(
+                    left: w * at,
+                    top: 0,
+                    bottom: 0,
+                    width: w,
+                    child: child!,
+                  ),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),

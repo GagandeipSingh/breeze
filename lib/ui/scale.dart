@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -22,14 +24,29 @@ class ScaleToWidth extends StatelessWidget {
   final Widget child;
 
   static const designWidth = 418.0;
+  static const designHeight = 860.0;
 
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
     // The SHORTER side, never the width: in landscape the width is the long
-    // side, and scaling by it zoomed the whole UI up to the 1.3 clamp. The
-    // short side is the same in both orientations, so rotating keeps sizes.
-    final f = (mq.size.shortestSide / designWidth).clamp(0.8, 1.3);
+    // side, and scaling by it zoomed the whole UI up to the clamp. The short
+    // side is the same in both orientations, so rotating keeps sizes.
+    //
+    // The LONGER side bounds it too: the design is a tall phone (418 x ~860),
+    // and a nearly square unfolded foldable zoomed by its short side alone
+    // (1.3x) left the controls huge and the content cramped.
+    //
+    // The cap grows with the screen: up to ~1380 wide (tablets, a desktop
+    // window) it stays 1.15x, as 1.3x looked oversized in a tablet window;
+    // a 1920-wide desktop gets ~1.6x so it is not left small in the middle
+    // of empty space. The same rule as the Dates and Compass apps.
+    final f = math
+        .min(
+          mq.size.shortestSide / designWidth,
+          mq.size.longestSide / designHeight,
+        )
+        .clamp(0.8, (mq.size.longestSide / 1200).clamp(1.15, 2.0));
     if ((f - 1).abs() < 0.01) return child;
     final size = mq.size / f;
     return SizedBox.expand(

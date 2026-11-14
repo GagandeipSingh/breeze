@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'data/note_scope.dart';
 import 'data/note_store.dart';
 import 'state/settings.dart';
+import 'ui/glass_surface.dart' show GlassLens;
 import 'ui/home.dart';
 import 'ui/scale.dart';
 
@@ -32,6 +33,8 @@ Future<void> main() async {
       DeviceOrientation.portraitDown,
     ]);
   }
+  // The liquid glass lens; without it (no Impeller) glass is frost only.
+  await GlassLens.load();
   final settings = await Settings.load();
   final store = await NoteStore.open();
   // Purge trash past 30 days at every launch, not only when Trash is opened.
@@ -56,6 +59,17 @@ class BreezeApp extends StatelessWidget {
       colorSchemeSeed: s.accent.color,
       useMaterial3: true,
       splashFactory: NoSplash.splashFactory,
+      // Screens slide in from the right and can be swiped back, as on iOS,
+      // on every platform.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       cupertinoOverrideTheme: const CupertinoThemeData(
         textTheme: CupertinoTextThemeData(
           textStyle: TextStyle(fontFamily: 'Inter'),
