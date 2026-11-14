@@ -49,6 +49,13 @@ class SaveActivity : Activity() {
 
     private fun save(intent: Intent?): String {
         return try {
+            @Suppress("DEPRECATION")
+            val shared = intent?.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            if (intent?.action == Intent.ACTION_SEND && shared != null &&
+                isMedia(this, intent, shared)
+            ) {
+                return "Breeze saves text, not photos or media"
+            }
             val (name, text) = read(intent) ?: return "Nothing to save"
             // Where Flutter's path_provider puts app documents
             // (getApplicationDocumentsDirectory -> app_flutter).
@@ -87,6 +94,8 @@ class SaveActivity : Activity() {
                 val stream = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
                 if (stream != null) {
                     if (stream.scheme != "content") return null
+                    // A */* share can still bring a photo here; not saved.
+                    if (isMedia(this, intent, stream)) return null
                     val text = readUri(stream)
                     if (text.isBlank()) return null
                     val shown = displayName(stream)?.let { cleanName(it) }

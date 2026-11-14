@@ -518,6 +518,11 @@ class MainActivity : FlutterFragmentActivity() {
             // A file:// link could point at Breeze's own private files (its
             // PIN among them) and copy them into a note.
             if (stream.scheme != "content") throw OpenFail("Breeze can't open this file")
+            // A share typed */* matches every share filter, so a photo can
+            // still arrive here; sharing media to Breeze is not offered.
+            if (isMedia(this, intent, stream)) {
+                throw OpenFail("Breeze takes text and documents, not photos or media")
+            }
             val (text, cs) = readDoc(stream)
             return Triple(namedFor(displayName(stream), text), text, cs)
         }
@@ -925,3 +930,23 @@ class MainActivity : FlutterFragmentActivity() {
 
 /** Why an incoming file or text could not be opened, shown to the user. */
 private class OpenFail(message: String) : Exception(message)
+
+/** Whether a shared file is a photo, video or sound: by its MIME type, the
+ *  share's own type, or else its name. */
+internal fun isMedia(context: android.content.Context, intent: Intent, uri: Uri): Boolean {
+    val types = listOfNotNull(
+        try { context.contentResolver.getType(uri) } catch (_: Exception) { null },
+        intent.type,
+    )
+    if (types.any { it.startsWith("image/") || it.startsWith("video/") || it.startsWith("audio/") }) {
+        return true
+    }
+    val name = (uri.lastPathSegment ?: "").lowercase()
+    return MEDIA_EXTENSIONS.any { name.endsWith(".$it") }
+}
+
+private val MEDIA_EXTENSIONS = listOf(
+    "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "tif", "tiff",
+    "avif", "raw", "dng", "mp4", "mkv", "mov", "webm", "3gp", "avi",
+    "mp3", "m4a", "aac", "wav", "ogg", "opus", "flac", "amr",
+)

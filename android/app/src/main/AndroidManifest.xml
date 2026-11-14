@@ -25,10 +25,11 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Open any file, like Windows Notepad and VS Code: Breeze is in
-                 the "Open with" list for every file. Text opens to edit; a
-                 binary file (a photo, an app) opens read only, shown as
-                 text, so its bytes are never changed. -->
+            <!-- Breeze is in the "Open with" list for text, documents, code and
+                 unknown files (octet-stream). Not for photos, video or audio:
+                 no "*/*" here, or a gallery lists Breeze for every picture.
+                 A binary file opened from Breeze's own picker still opens read
+                 only, shown as text, so its bytes are never changed. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <action android:name="android.intent.action.EDIT"/>
@@ -36,7 +37,6 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="file"/>
                 <data android:scheme="content"/>
-                <data android:mimeType="*/*"/>
                 <data android:mimeType="text/*"/>
                 <data android:mimeType="application/rtf"/>
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document"/>
@@ -143,7 +143,10 @@
             <!-- Share sheet: text (a selection, a link, a message) or a file
                  shared from any app (a text file, a Word or RTF document
                  sent from Google Docs or an email, data) opens in Breeze.
-                 Not "Save to Breeze" below: that saves text only. -->
+                 Not "Save to Breeze" below: that saves text only.
+                 No application/octet-stream: a photo shared with that
+                 generic type listed Breeze. Opening an image is "Open with"
+                 (above); sharing one to Breeze is not offered. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND"/>
                 <category android:name="android.intent.category.DEFAULT"/>
@@ -175,7 +178,6 @@
                 <data android:mimeType="application/x-javascript"/>
                 <data android:mimeType="application/x-subrip"/>
                 <data android:mimeType="application/x-wine-extension-ini"/>
-                <data android:mimeType="application/octet-stream"/>
             </intent-filter>
             <!-- Text selection menu (copy / share / ...): opens the selected
                  text as a new note. -->
