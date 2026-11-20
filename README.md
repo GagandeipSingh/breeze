@@ -15,6 +15,8 @@ A fast, calm editor for Android for notes, documents and code. Every note is a r
 
 <img src="store/tablet_10in/01_home.png" width="620">
 
+<img src="store/desktop/01_home.png" width="620">
+
 ## Download
 
 Get the latest APK from [Releases](https://github.com/GagandeipSingh/breeze/releases/latest). Most phones use the **arm64-v8a** file. Requires Android 7.0 or newer.
@@ -28,7 +30,7 @@ Get the latest APK from [Releases](https://github.com/GagandeipSingh/breeze/rele
 - **Your view:** compact, standard, detailed or grid
 - **Safe:** autosave, a trash that keeps files for 30 days, and an optional lock with biometrics or a Breeze PIN
 - **Make it yours:** light and dark theme, six accents, text size and a monospace font
-- **Any screen:** phones, tablets and foldables
+- **Any screen:** phones, tablets, foldables and desktop mode
 
 ## Build
 
