@@ -39,7 +39,7 @@ void showToast(
   final hasAction = actionLabel != null && onAction != null;
   late final OverlayEntry entry;
   var gone = false;
-  // Springs up from below the screen, and drops back out when it goes.
+  // Drops in from above the screen, and slides back up when it goes.
   final shown = ValueNotifier<bool>(false);
   final reduce = MediaQuery.disableAnimationsOf(context);
   void close() {
@@ -61,10 +61,13 @@ void showToast(
   entry = OverlayEntry(
     builder: (ctx) {
       final mq = MediaQuery.of(ctx);
-      // Sit above the keyboard when it's open, otherwise above the bottom bar.
-      final bottom = mq.viewInsets.bottom > 0
-          ? mq.viewInsets.bottom + 16.dp
-          : mq.padding.bottom + 90.dp;
+      // At the TOP, sliding down from under the status bar. Android 13+ (and
+      // Samsung earlier) shows its own "Copied" pill near the bottom whenever
+      // an app writes the clipboard, so a toast down there landed on it; the
+      // top is also clear of the keyboard.
+      // It starts BELOW the header row: right under the status bar it sat on
+      // the page title and its buttons (seen on a 360 x 640 Android 9 phone).
+      final top = mq.padding.top + 52.dp;
       final glass = GlassSurface(
         radius: 22.dp,
         thick: true,
@@ -141,7 +144,7 @@ void showToast(
           builder: (ctx, v, child) => Positioned(
             left: 16.dp,
             right: 16.dp,
-            bottom: bottom - (bottom + 140.dp) * (1 - v),
+            top: top - (top + 140.dp) * (1 - v),
             child: child!,
           ),
         ),
