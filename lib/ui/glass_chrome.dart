@@ -423,6 +423,7 @@ class NavButtonBacking extends StatelessWidget {
       child: const IgnorePointer(
         child: GlassSurface(
           radius: 0,
+          edgeless: true,
           thick: true,
           child: SizedBox.expand(),
         ),
